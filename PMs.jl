@@ -1,14 +1,11 @@
 
+include("../../credentials.jl")
+include("dirs.jl")
+
 if isfile(raw"c:\users\matt\ntuser.ini")
-	push!(LOAD_PATH, raw"C:\Users\matt\Documents\power\Lib")
-	push!(LOAD_PATH, raw"C:\Users\matt\Documents\GitHub\power")
 	outdir = raw"C:\Users\matt\Documents\power"
-	include(raw"C:\Users\matt\Documents\power\credentials.jls")
 else
-	push!(LOAD_PATH, raw"Z:\Maintenance\Matt-Heath\Lib")
-	push!(LOAD_PATH, raw"Z:\Maintenance\Matt-Heath\GitHub\power")
 	outdir = raw"Z:\Maintenance\PPM"
-	include(raw"Z:\Maintenance\Matt-Heath\credentials.jls")
 end
 
 using Plexus
@@ -18,6 +15,7 @@ using PMDB
 using XlsxWriter
 using DataArrays
 using SQLite
+
 
 plex = Plex(credentials["plex"]...)
 
@@ -268,13 +266,13 @@ function overdues()
 	end
 	
 	bind!("PM_Stats", 1, datum)
-	foreach((t)->exebind!("PM_Stats", [2,3,4,5], [t[1], t[2][1], t[2][2], t[2][3]]), totals)
+	foreach((t)->exebind!("PM_Stats", [t[1], t[2][1], t[2][2], t[2][3]], [2,3,4,5]), totals)
 end
 
 
-insert_equipment!(plex)
+#insert_equipment!(plex)
 
-pm2sqlite()
+#pm2sqlite()
 
 overdues()
 
