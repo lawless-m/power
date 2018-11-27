@@ -19,62 +19,6 @@ using SQLite
 
 plex = Plex(credentials["plex"]...)
 
-function insert_equipment!(p)
-	println(Plexus.equipment!(p))
-
-	truncate!("Equipment")
-	
-	lines = column_n("Lines", 1)
-	
-	ins = SQLite.Stmt(PlexDB, "INSERT INTO Equipment (key, ID, Descr, Line) VALUES(?, ?, ?, ?)")
-	
-	for (k,txt) in Plexus.equipment!(p)
-		bt = split(txt, ' ')
-		ains = [a in lines for a in bt]
-		if any(ains)
-			line = first(bt[ains])
-		else
-			line = "Other"
-		end
-		SQLite.bind!(ins, 1, parse(Int, k))
-		SQLite.bind!(ins, 2, txt)
-		SQLite.bind!(ins, 3, txt)
-		SQLite.bind!(ins, 4, line)
-		SQLite.execute!(ins)
-	end
-end
-
-
-function insert_pms!(pms)
-	SQLite.query(PlexDB, "delete from PM_task")
-	SQLite.query(PlexDB, "delete from PM")
-
-	ins = SQLite.Stmt(PlexDB, "INSERT INTO PM (ChkNo, ChkKey, Equipment_key, Title, Priority, Frequency, Instructions, ScheduledHours, StartDate) VALUES(?,?,?,?,?,?,?,?,?)")
-	
-	tsk = SQLite.Stmt(PlexDB, "INSERT INTO PM_Task (Task, Instructions, ChkNo, Equipment_key) VALUES(?,?,?,?)")	
-	
-	for pm in pms
-		SQLite.bind!(ins, 1, parse(Int, pm.checklist_no))
-		SQLite.bind!(ins, 2, parse(Int, pm.checklist_key))
-		SQLite.bind!(ins, 3, parse(Int, pm.equipkey))
-		SQLite.bind!(ins, 4, pm.pmtitle)
-		SQLite.bind!(ins, 5, pm.maintfrm.priority)
-		SQLite.bind!(ins, 6, parse(Int, pm.freq))
-		SQLite.bind!(ins, 7, replace(pm.maintfrm.sinstruct, ['\r', '\n'], ""))
-		SQLite.bind!(ins, 8, pm.maintfrm.hours)
-		SQLite.bind!(ins, 9, Dates.value(pm.start))
-		SQLite.execute!(ins)
-
-		SQLite.bind!(tsk, 2, "")				
-		SQLite.bind!(tsk, 3, parse(Int, pm.checklist_no))
-		SQLite.bind!(tsk, 4, parse(Int, pm.equipkey))
-
-		for task in pm.maintfrm.tasklist
-			SQLite.bind!(tsk, 1, task)
-			SQLite.execute!(tsk)
-		end
-	end
-end
 
 function lines()
 	SQLite.query(PlexDB, "select * from Lines")[1:end]
@@ -240,10 +184,6 @@ function list_pms()
 	close(wb)
 end
 
-function pm2sqlite()
-	pms = cache("pm_list", ()->pm_list(plex))
-	insert_pms!(pms)
-end
 
 function overdues()
 
@@ -269,8 +209,6 @@ function overdues()
 	foreach((t)->exebind!("PM_Stats", [t[1], t[2][1], t[2][2], t[2][3]], [2,3,4,5]), totals)
 end
 
-
-#insert_equipment!(plex)
 
 #pm2sqlite()
 

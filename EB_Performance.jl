@@ -74,8 +74,6 @@ function store_sheet(inum, xlfn)
 end
 
 function store_sheets()
-	cleardb()
-
 	inum = 0
 	for (xld, xlfn) in Channel(perfXls)
 		inum = cache(xlfn, ()->store_sheet(inum, "$xld\\$xlfn"), "EBPerf")
