@@ -1,11 +1,12 @@
 
-for lib in readdir("GitHub")
-	push!(LOAD_PATH, realpath("GitHub\\$lib"))
-end
-
 if isfile(raw"c:\users\matt\ntuser.ini")
-	dbdir = raw"C:\Users\matt\Documents\power\SQLite.Data"
+	home = raw"C:\Users\matt\Documents\power"
 else
-	dbdir = raw"Z:\Maintenance\Matt-H\power\SQLite.Data"
+	home = raw"Z:\Maintenance\Matt-H\power"	
 end
 
+for lib in readdir("$home\\GitHub")
+	push!(LOAD_PATH, "$home\\GitHub\\$lib")
+end
+
+dbdir = "$home\\SQLite.Data"

@@ -160,14 +160,12 @@ function overdues()
 		end
 	end
 	
-	println(totals)
-	
 	foreach((t)->insert_pm_stats!([datum, t[1], t[2][1], t[2][2], t[2][3]]), totals)
 end
 
 overdues()
 
-#list_pms()
+list_pms()
 
 
 
