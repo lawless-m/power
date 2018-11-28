@@ -14,7 +14,6 @@ using Cache
 using PMDB
 using XlsxWriter
 
-
 plex = Plex(credentials["plex"]...)
 
 function extract_wrby_year(yr, linecode, lineplx)
@@ -64,9 +63,10 @@ function write_stats_sheet(sheets)
 	end
 	
 	(ws, r, c) = sheets["Chart"]
-	lines = column_n("Lines", 1)
+	
+	lns = lines()
 	r = 1
-	for l in lines
+	for l in lns
 		write!(ws, r, 0, l)
 		r += 1
 	end 
@@ -75,7 +75,7 @@ function write_stats_sheet(sheets)
 	for d in date_entries
 		write!(ws, 0, c, ymd(d))
 		r = 1
-		for l in lines
+		for l in lns
 			write!(ws, r, c, get(stats[d], l, [0])[1])
 			r += 1
 		end
@@ -121,8 +121,7 @@ function list_pms()
 			if od == today
 				od = 0
 			end
-			
-			c += write_row!(ws, r, c, pm, wraptop)
+			c += write_row!(ws, r, c, [pm[:Line], pm[:ID], pm[:Title], pm[:Priority], pm[:Frequency], pm[:ScheduledHours], pm[:tasks], ymd(pm[:LastComplete]), ymd(pm[:DueDate])], wraptop)
 			if od < 0
 				write!(ws, r, c, "Due in $(abs(od))", DueInF)	
 			else
@@ -142,10 +141,8 @@ function list_pms()
 	close(wb)
 end
 
-
 function overdues()
-
-	foreach((p)->update!("PMs", p), pm_report(plex))
+	update_pm_dates!((channel)->pm_report(plex, channel))
 	
 	today = Dates.value(Date(now()))
 	datum = Dates.value(now())
@@ -163,13 +160,14 @@ function overdues()
 		end
 	end
 	
-	bind!("PM_Stats", 1, datum)
-	foreach((t)->exebind!("PM_Stats", [t[1], t[2][1], t[2][2], t[2][3]], [2,3,4,5]), totals)
+	println(totals)
+	
+	foreach((t)->insert_pm_stats!([datum, t[1], t[2][1], t[2][2], t[2][3]]), totals)
 end
 
-#overdues()
+overdues()
 
-list_pms()
+#list_pms()
 
 
 

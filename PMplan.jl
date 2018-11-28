@@ -9,3 +9,4 @@ plex = Plex(credentials["plex"]...)
 
 fill_equipment(equipment(plex, ))
 
+
