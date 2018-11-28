@@ -13,7 +13,7 @@ fill_equipment(equipment(plex, lines()))
 clear_pm_tasks()
 clear_pms()
 
-for pm in cache("pm_list", ()->pm_list(plex))
+for pm in cache("plex_pms", ()->plex_pms(plex))
 	insert_pm(parse(Int, pm.checklist_no)
 			, parse(Int, pm.checklist_key)
 			, parse(Int, pm.equipkey)

@@ -9,9 +9,13 @@ end
 using SQLite
 using SQLiteTools
 
-export PlexDB, pm_list_by_line, pm_stats_by_date, fill_equipment, lines, insert_pm, clear_pm_tasks, clear_pms
+export PlexDB, pm_list_by_line, pm_stats_by_date, fill_equipment, lines, insert_pm, clear_pm_tasks, clear_pms, pm_list, missInt, int2date, int2time
 
 PlexDB = SQLite.DB("$dbdir\\Plex.db")
+
+missInt = SQLiteTools.missInt
+int2date = SQLiteTools.int2date
+int2time = SQLiteTools.int2time
 
 inserts = Dict(
 			"PM_Stats"=>SQLite.Stmt(PlexDB, "INSERT INTO PM_Stats (Date, Line, OD, High, Items) VALUES(?,?,?,?,?)")
@@ -49,5 +53,30 @@ end
 
 lines() = column_n(PlexDB, "Lines", 1)
 
+function pm_list(chan)
+	pms = SQLite.query(PlexDB, "select PM.ChkNo, PM.ChkKey, PM.Title, PM.Priority, PM.Frequency, PM.ScheduledHours, PM.LastComplete, PM.DueDate, PM.Equipment_key, Equipment.ID, Equipment.Line from PM left join Equipment on PM.Equipment_key = Equipment.key ORDER BY Equipment.Line, PM.Priority, PM.DueDate")
+	for row in 1:size(pms,1)
+		pm = Dict{Symbol,Any}()
+		foreach((s)->pm[s] = pms[row, s], [:Line, :ID, :Title, :Priority, :Frequency, :ScheduledHours])
+		tasks = pm_tasks(pms[row, :Equipment_key], pms[row, :ChkNo])
+		pm[:tasks] = ""
+		for trow in 1:size(tasks,1)
+			if trow > 1
+				pm[:tasks] = pm[:tasks] * "\n"
+			end
+			pm[:tasks] = pm[:tasks] * " * " * tasks[trow, :Task]
+			if tasks[trow, :Instructions] != ""
+				pm[:tasks] = pm[:tasks] * " [" * tasks[trow, :Instructions] * "]"
+			end
+		end
+		pm[:LastComplete] = int2date(missInt(pms[row, :LastComplete]))
+		pm[:DueDate] = int2date(missInt(pms[row, :DueDate]))
+		put!(chan, pm)
+	end
 end
 
+function pm_tasks(Equipment_key, ChkNo)
+	SQLite.query(PlexDB, "SELECT Task, Instructions from PM_Task WHERE Equipment_key=? AND ChkNo=?", values=[Equipment_key, ChkNo])
+end
+
+end

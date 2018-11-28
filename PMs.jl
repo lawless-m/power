@@ -13,17 +13,9 @@ using HTMLParser
 using Cache
 using PMDB
 using XlsxWriter
-using DataArrays
-using SQLite
 
 
 plex = Plex(credentials["plex"]...)
-
-
-function lines()
-	SQLite.query(PlexDB, "select * from Lines")[1:end]
-end
-
 
 function extract_wrby_year(yr, linecode, lineplx)
 	cache("PMS_$(yr)_$(linecode)_csv", ()->work_requests_pms(plex, Date(yr,1,1), Date(yr, 12, 31), true, filter=Plexus.WR_pms, line=lineplx))
@@ -38,13 +30,6 @@ function get_all_wrs()
 		end
 	end
 end
-
-
-missInt(v) = typeof(v) == Missings.Missing ? 0 : v
-
-int2date(dv) = dv > 0 ? ymd(Date(Dates.UTD(missInt(dv)))) : ""
-
-int2time(dv) = dv > 0 ? DateTime(Dates.UTM(missInt(dv))): DateTime(now())
 
 ymd(d) = Dates.format(d, "yyyy-mm-dd")
 
@@ -122,53 +107,26 @@ function list_pms()
 	sheets["Chart"] = (add_worksheet!(wb, "Chart"), 0, 0)
 	sheets["All"] = init_sheet!("All")
 	
-	
-	pms = SQLite.query(PlexDB, "select PM.ChkNo, PM.ChkKey, PM.Title, PM.Priority, PM.Frequency, PM.ScheduledHours, PM.LastComplete, PM.DueDate, PM.Equipment_key, Equipment.ID, Equipment.Line from PM left join Equipment on PM.Equipment_key = Equipment.key ORDER BY Equipment.Line, PM.Priority, PM.DueDate")
-	
 	today = Dates.value(Date(now()))
-	
 	totals = Dict{String, Tuple{Int,Int,Int}}()
 		
-	for row in 1:size(pms,1)			
-		tasks = SQLite.query(PlexDB, "SELECT Task, Instructions from PM_Task WHERE Equipment_key=? AND ChkNo=?", values=[pms[row, :Equipment_key], pms[row, :ChkNo]])
-		
-		tsks = ""
-		for trow in 1:size(tasks,1)
-			if trow > 1
-				tsks = tsks * "\n"
-			end
-			tsks = tsks * " * " * tasks[trow, :Task]
-			if tasks[trow, :Instructions] != ""
-				tsks = tsks * " [" * tasks[trow, :Instructions] * "]"
-			end
-		end
-		
-		for sht in ["All", pms[row, :Line], pms[row, :Priority]]
+	for pm in Channel(pm_list)	
+		for sht in ["All", pm[:Line], pm[:Priority]]
 			if ! (sht in keys(sheets))
 				sheets[sht] = init_sheet!(sht)
 			end
 			(ws, r, c) = sheets[sht]
 			
-			od = today - missInt(pms[row, :DueDate])
+			od = today - Dates.value(pm[:DueDate])
 			if od == today
 				od = 0
 			end
 			
-			c += write_row!(ws, r, c, [
-				pms[row, :Line], 
-				pms[row, :ID], 
-				pms[row, :Title],
-				pms[row, :Priority],
-				pms[row, :Frequency],
-				pms[row, :ScheduledHours],	
-				tsks,
-				int2date(missInt(pms[row, :LastComplete])),
-				int2date(missInt(pms[row, :DueDate]))
-			], wraptop)
+			c += write_row!(ws, r, c, pm, wraptop)
 			if od < 0
 				write!(ws, r, c, "Due in $(abs(od))", DueInF)	
 			else
-				if pms[row, :Priority] == "PM"
+				if pm[:Priority] == "PM"
 					t,n,m = get(totals, sht, (0,0,0))
 					totals[sht] = (t+od, n+1, max(m,od))
 				end
@@ -209,10 +167,7 @@ function overdues()
 	foreach((t)->exebind!("PM_Stats", [t[1], t[2][1], t[2][2], t[2][3]], [2,3,4,5]), totals)
 end
 
-
-#pm2sqlite()
-
-overdues()
+#overdues()
 
 list_pms()
 
