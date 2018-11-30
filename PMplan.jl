@@ -41,7 +41,7 @@ function max_items_per_line(events)
 end
 
 function write_events(events)
-	wb = Workbook("$home\\power\\PMs\\PM_Plan.xlsx")
+	wb = Workbook("$home\\power\\PMs\\PM_Plan2.xlsx")
 	ws = add_worksheet!(wb, "Plan")
 	wraptop = add_format!(wb, Dict("text_wrap"=>true, "valign"=>"top"))
 
@@ -56,21 +56,31 @@ function write_events(events)
 		r += maxs[l]
 	end
 	c = 1
-	write_row!(ws, 0, c, map((d)->Dates.format(d, "yyyy-mm-dd"), sort(collect(keys(events)))))
+	for d in sort(collect(keys(events)))
+		c += 1 + write!(ws, 0, c, Dates.format(d, "yyyy-mm-dd"))
+	end
 	
 	c = 1
 	for d in sort(collect(keys(events)))
 		r = 1
 		for l in sort(lns)
+			ltxt = " - $l"
 			lr = r
 			if length(events[d][l]) > 0
 				for pm in events[d][l]
-					lr += write!(ws, lr, c, "$(pms[pm][:ID])\n$(round(pms[pm][:ScheduledHours],1)) Hrs\n$(pms[pm][:Title])", wraptop)
+					write!(ws, lr, c, round(pms[pm][:ScheduledHours],1), wraptop)
+					id = endswith(pms[pm][:ID], ltxt) ? pms[pm][:ID][1:end-length(ltxt)] : pms[pm][:ID]
+					lr += write!(ws, lr, c+1, "$(id)\n$(pms[pm][:Title])", wraptop)
 				end
 			end
 			r += maxs[l]
 		end
-		c += 1
+		range = rc2cell(1, c) * ":" * rc2cell(r-1, c)
+		write_formula!(ws, r, c, "=concatenate(\"Scheduled Hrs: \", sum($range))")
+		write_formula!(ws, r+1, c, "=concatenate(\"Unknown time: \", COUNTIF($range,\"=0\"))")
+		write_formula!(ws, r+2, c, "=concatenate(\"No. Tasks: \", COUNTIF($range,\">=0\"))")
+		
+		c += 2
 	end
 	
 	close(wb)

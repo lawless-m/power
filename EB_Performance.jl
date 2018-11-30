@@ -80,7 +80,6 @@ function store_sheets()
 	end
 end
 
-store_sheets()
 
 function write_sheets(io)
 	rows = allEB()
@@ -95,4 +94,6 @@ function write_sheets(io)
 	end
 end
 
+cleardb()
+store_sheets()
 open(write_sheets, raw"N:\EB Performance Sheets\consolidated.txt", "w+")
