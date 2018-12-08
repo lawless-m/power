@@ -15,13 +15,13 @@ dir = raw"N:\EB Performance Sheets"
 
 function perfXls(c)
 	for xlfn in sort(filter((f)->f[1] != '~' && f[end-4:end] == ".xlsx" && f[1:4]=="2018", readdir(dir)))
-		put!(c, (dir, xlfn))
+		file_recorded(xlfn) || put!(c, (dir, xlfn))
 	end
 end
 
-function store_sheet(inum, xlfn)
-	data = readxlsheet(xlfn, "EB Line")
-	vals = Vector{Any}(22)
+function store_sheet(inum, xld, xlfn)
+	data = readxlsheet(xld * "\\" * xlfn, "EB Line")
+	vals = Vector{Any}(23)
 	vals[1] = Dates.value(data[1,2])
 	vals[2] = data[1,18]
 	
@@ -68,15 +68,16 @@ function store_sheet(inum, xlfn)
 
 		inum += 1
 		vals[22] = inum
+		vals[23] = xlfn
 		insertEB(vals)
 	end
 	inum
 end
 
 function store_sheets()
-	inum = 0
+	inum = last_inum()
 	for (xld, xlfn) in Channel(perfXls)
-		inum = cache(xlfn, ()->store_sheet(inum, "$xld\\$xlfn"), "EBPerf")
+		inum = store_sheet(inum, xld, xlfn)
 	end
 end
 
@@ -94,6 +95,6 @@ function write_sheets(io)
 	end
 end
 
-cleardb()
+#cleardb()
 store_sheets()
 open(write_sheets, raw"N:\EB Performance Sheets\consolidated.txt", "w+")
