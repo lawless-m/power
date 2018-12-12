@@ -39,7 +39,7 @@ function insert_pm(ChkNo, ChkKey, Equipment_key, Title, Priority, Frequency, Ins
 	foreach((t)->exebind!(get!(inserts, "PM_Task", SQLite.Stmt(PlexDB, "INSERT INTO PM_Task (Task, Instructions, ChkNo, Equipment_key) VALUES(?,?,?,?)")), [t, "", ChkNo, Equipment_key]), tasks)
 end
 
-lines() = column_n(PlexDB, "Lines", 1)
+lines() = SQLite.query(PlexDB, "Select name FROM Lines")[1:end, 1]
 
 function pm_list(chan)
 	pms = SQLite.query(PlexDB, "select PM.ChkNo, PM.ChkKey, PM.Title, PM.Priority, PM.Frequency, PM.ScheduledHours, PM.LastComplete, PM.DueDate, PM.Equipment_key, Equipment.ID, Equipment.Line from PM left join Equipment on PM.Equipment_key = Equipment.key and Equipment.key is not null ORDER BY Equipment.Line, PM.Priority, PM.DueDate")

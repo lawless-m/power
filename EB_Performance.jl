@@ -10,6 +10,7 @@ using XlsxWriter
 using ExcelReaders
 using DataArrays
 
+maps = Dict("EB"=>Dict(
 
 dir = raw"N:\EB Performance Sheets"
 
@@ -19,43 +20,54 @@ function perfXls(c)
 	end
 end
 
-function store_sheet(inum, xld, xlfn)
-	data = readxlsheet(xld * "\\" * xlfn, "EB Line")
-	vals = Vector{Any}(23)
+
+
+function store_Paint_sheet(inum, xld, xlfn)
+	data = readxlsheet(xld * "\\" * xlfn, "Paint")
+	vals = Vector{Any}(25)
+	ws_n = Dict("Shift"=>1, "Product"=>2, "Std_Rate_PPH"=>3, "Avail_Hours"=>4, "Product_Max"=>5, "Product_Avail"=>6, "Product_Variance"=>7, "Time_Variance"=>8, "Efficiency"=>9, "Line"=>10, "Item"=>11, "Process"=>12, "Problem"=>13, "Quality_Defect_Type"=>14, "Quality_Lost"=>15, "Loss_Mins"=>16, "Effect"=>17, "OEE_Element"=>18, "Action"=>19, "Fix_Or_Repair"=>20)
+	
+	val_n = Dict("Shift"=>3, "Product"=>4, "Std_Rate_PPH"=>5, "Avail_Hours"=>6, "Product_Max"=>7, "Product_Avail"=>8, "Product_Variance"=>9, "Time_Variance"=>10, "Efficiency"=>11, "Line"=>12, "Item"=>13, "Process"=>14, "Problem"=>15, "Quality_Defect_Type"=>16, "Quality_Lost"=>17, "Loss_Mins"=>18, "Effect"=>19, "OEE_Element"=>20, "Action"=>21, "Fix_Or_Repair"=>22)
+	
+
+	Data(r, n::Integer) = typeof(data[r, n]) != DataValues.DataValue{Union{}}
+	Data(r, s::String) = Data(r, ws_n[s])
+	vv(s) = vals[val_n[s]]
+	dv(r, s) = data[r, ws_n[s]]
+	vdif!(r, s) = vals[val_n[s]] = Data(r, s) ? dv(r, s) : vv(s)
+	vd!(r, s) = vals[val_n[s]] = dv(r, s)
+	vfloor!(r, s) = 
+	
 	vals[1] = Dates.value(data[1,2])
-	vals[2] = data[1,18]
+	vals[2] = data[1,19]
 	
 	for r in 3:50
-		if typeof(data[r,11]) != DataValues.DataValue{Union{}}
+		if Data(r, 11)
 			println(data[r,1:end])
 		end
 	
-		if typeof(data[r,11]) == DataValues.DataValue{Union{}}
+		if !Data(r, 11)
 			return inum
 		end
-		for k in 1:3
-			if typeof(data[r,k]) != DataValues.DataValue{Union{}} # shift
-				vals[k+2] = data[r, k]
+		vdif!(r, "Shift")
+		vdif!(r, "Product")
+		
+		if Data(r, ws_n["Std_Rate_PPH"])
+			vd!("Std_Rate_PPH")
+			for s in ["Avail_Hours", "Product_Max", "Product_Avail", "Product_Variance", "Time_Variance", "Efficiency"]
+				vdif!(r, s)
 			end
-		end
-		if typeof(data[r,4]) != DataValues.DataValue{Union{}} # pph
-			vals[6] = data[r, 4]
-			for k in 5:12				
-				if typeof(data[r,k]) != DataValues.DataValue{Union{}} # avail hrs
-					vals[k+2] = data[r, k]
-				end
-			end
-			vals[8] = floor(data[r, 6])
-			vals[10] = floor(data[r, 8])
+			vals[vals_n["Time_Variance"]] = floor(data[r, ws_n["Time_Variance"]])
+			vals[vals_n["Efficiency"]] = floor(data[r, ws_n["Efficiency"]])
 		else
-			if typeof(data[r,3]) != DataValues.DataValue{Union{}}
+			if Data(r, ws_n["Product"])
 				for k = 6:12
 					vals[k] = 0
 				end
 			end
 		end
 		for k in 11:19
-			if typeof(data[r,k]) != DataValues.DataValue{Union{}} # Item
+			if Data(r, k) # Item
 				vals[k+2] = data[r, k]
 			else
 				if k == 14
@@ -63,6 +75,48 @@ function store_sheet(inum, xld, xlfn)
 				else
 					vals[k+2] = ""
 				end
+			end
+		end
+
+		inum += 1
+		vals[23] = inum
+		vals[24] = xlfn
+		insertPaint(vals)
+	end
+	inum
+end
+	
+
+
+function store_EB_sheet(inum, xld, xlfn)
+	data = readxlsheet(xld * "\\" * xlfn, "EB Line")
+	vals = Vector{Any}(23)
+	vals[1] = Dates.value(data[1,2])
+	vals[2] = data[1,18]
+	
+	Data(r, n) = typeof(data[r, n]) != DataValues.DataValue{Union{}}
+	
+	for r in 3:50
+		Data(r, 11) && (println(data[r,1:end])) || (return inum)
+		
+		for c in 1:3
+			Data(r,c) && vals[c+2] = data[r, c] # shift
+		end
+		if Data(r,4) # pph
+			vals[6] = data[r, 4]
+			for c in 5:12				
+				Data(r,c) && (vals[c+2] = data[r, c])
+			end
+			vals[8] = floor(data[r, 6])
+			vals[10] = floor(data[r, 8])
+		else
+			Data(r,3) && (vals[6:12] = 0)
+		end
+		for c in 11:19
+			if Data(r,c)
+				vals[c+2] = data[r, c]
+			else
+				vals[c+2] = k == 14 ? 0:""
 			end
 		end
 
@@ -95,6 +149,6 @@ function write_sheets(io)
 	end
 end
 
-#cleardb()
+#clear("EB")
 store_sheets()
 open(write_sheets, raw"N:\EB Performance Sheets\consolidated.txt", "w+")

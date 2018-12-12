@@ -1,25 +1,29 @@
-module EBDB
+module PerfDB
 
 using SQLite
 using SQLiteTools
 
-export cleardb, insertEB, allEB, file_recorded, last_inum
+export clearEB, insertEB, allEB, file_recorded, last_inum
 
 include("dirs.jl")
 
-EBdb = SQLite.DB("$dbdir\\EB_Perf.db")
+perfDB = SQLite.DB("$dbdir\\Perf.db")
 
-println("$dbdir\\EB_Perf.db")
+println("$dbdir\\Perf.db")
 
-cleardb() = truncate!(EBdb, "EB")
+clear(line) = truncate!(perfDB, "EB")
 
-SQLiteTools.insert!(EBdb, "EBi", "Insert into EB (Date, Leader, Shift, Line, Product, Std_Rate_PPH, Avail_Hours, Product_Max, Product_Avail, Product_Variance, Time_Variance, Efficiency, Item, Process, Problem, Loss_Mins, Effect, OEE_Element, Action, Fix_Or_Repair, Weld_section_due, IncidentNo, filename) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+SQLiteTools.insert!(perfDB, "EBi", "Insert into EB (Date, Leader, Shift, Line, Product, Std_Rate_PPH, Avail_Hours, Product_Max, Product_Avail, Product_Variance, Time_Variance, Efficiency, Item, Process, Problem, Loss_Mins, Effect, OEE_Element, Action, Fix_Or_Repair, Weld_section_due, IncidentNo, filename) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+
+SQLiteTools.insert!(perfDB, "PaintI", "Insert into Paint (Date, Leader, Shift, Product, Std_Rate_PPH, Avail_Hours, Product_Max, Product_Avail, Product_Variance, Time_Variance, Efficiency, Line, Item, Process, Problem, Quality_Defect_Type, Quality_Lost, Loss_Mins, Effect, OEE_Element, Action, Fix_Or_Repair, IncidentNo, filename) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
 
 insertEB(vals) = exebind!("EBi", vals)
-allEB() =  SQLite.query(EBdb, "select * from EB")
+allEB() =  SQLite.query(perfDB, "select * from EB")
 
-file_recorded(fn) = SQLite.query(EBdb, "select count(*) from EB WHERE filename=?", values=[fn])[1][1]>0
+insertPaint(vals) = exebind!("PaintI", vals)
 
-last_inum() = SQLite.query(EBdb, "select max(IncidentNo) from EB")[1][1]
+file_recorded(fn, line) = SQLite.query(perfDB, "select count(*) from $line WHERE filename=?", values=[fn])[1][1]>0
+
+last_inum(line) = SQLite.query(perfDB, "select max(IncidentNo) from $line")[1][1]
 
 end

@@ -8,7 +8,7 @@ lns = lines()
 
 function gather_events(pms)
 	s = Date(now())
-	e = s + Dates.Day(30)
+	e = s + Dates.Day(14)
 	events = Dict{Date, Dict{String, Vector{Int}}}()
 	for d in s:Dates.Day(1):e
 		events[d] = Dict{String, Vector{Int}}()
@@ -78,12 +78,12 @@ function write_events()
 			r += maxs[l]
 		end
 		range = rc2cell(1, c) * ":" * rc2cell(r-1, c)
-		write!(ws, r, c, "Scheduled Hrs:")
-		write_formula!(ws, r, c+1, "=sum($range)")
-		write!(ws, r+1, c, "Unknown time:")
-		write_formula!(ws, r+1, c+1, "=COUNTIF($range,\"=0\")")
-		write!(ws, r+2, c, "No. Tasks:")
-		write_formula!(ws, r+2, c+1, "=COUNTIF($range,\">=0\")")
+		write!(ws, r, c+1, ":Scheduled Hrs")
+		write_formula!(ws, r, c, "=sum($range)")
+		write!(ws, r+1, c+1, ":Unknown time")
+		write_formula!(ws, r+1, c, "=COUNTIF($range,\"=0\")")
+		write!(ws, r+2, c+1, ":No. Tasks")
+		write_formula!(ws, r+2, c, "=COUNTIF($range,\">=0\")")
 		
 		c += 2
 	end
@@ -112,6 +112,7 @@ function write_for_project()
 	close(wb)
 end
 
+write_events()
 write_for_project()
 
 
