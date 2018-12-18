@@ -3,7 +3,7 @@ module PerfDB
 using SQLite
 using SQLiteTools
 
-export clearEB, insertEB, allEB, file_recorded, last_inum
+export clear, insertEB, insertPaint, allEB, allPaint, file_recorded, last_inum
 
 include("dirs.jl")
 
@@ -18,7 +18,8 @@ SQLiteTools.insert!(perfDB, "EBi", "Insert into EB (Date, Leader, Shift, Line, P
 SQLiteTools.insert!(perfDB, "PaintI", "Insert into Paint (Date, Leader, Shift, Product, Std_Rate_PPH, Avail_Hours, Product_Max, Product_Actual, Product_Variance, Time_Variance, Efficiency, Line, Item, Process, Problem, Quality_Defect_Type, Quality_Lost_Parts, Loss_Mins, Effect, OEE_Element, Action, Fix_Or_Repair, IncidentNo, filename) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
 
 insertEB(vals) = exebind!("EBi", vals)
-allEB() =  SQLite.query(perfDB, "select * from EB")
+allEB() =  SQLite.query(perfDB, "select IncidentNo, Date, Leader, Shift, Line, Product, Std_Rate_PPH, Avail_Hours, Product_Max, Product_Actual, Product_Variance, Time_Variance, Efficiency, Item, Process, Problem, Loss_Mins, Effect, OEE_Element, Action, Fix_Or_Repair, Weld_section_due  from EB")
+allPaint() =  SQLite.query(perfDB, "select IncidentNo, Date, Leader, Shift, Product, Std_Rate_PPH, Avail_Hours, Product_Max, Product_Actual, Product_Variance, Time_Variance, Efficiency, Line, Item, Process, Problem, Quality_Defect_Type, Quality_Lost_Parts, Loss_Mins, Effect, OEE_Element, Action, Fix_Or_Repair from Paint")
 
 insertPaint(vals) = exebind!("PaintI", vals)
 
