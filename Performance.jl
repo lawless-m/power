@@ -83,7 +83,7 @@ function store_Paint_sheet(inum, xld, xlfn)
 	inum
 end
 
-function store_EB_sheet(inum, xld, xlfn, ws_n, val_n)
+function store_EB_sheet(inum, xld, xlfn)
 	data = readxlsheet(xld * "\\" * xlfn, "EB Line")
 	println(xlfn)
 	
@@ -171,18 +171,20 @@ function store_sheets(line, xlfun, storefn)
 end
 
 function procEB()
-	#clear("EB")
-	#store_sheets("EB", (c)->perfXls(c, "EB", "N:\\EB Performance Sheets"), store_EB_sheet)
-	open((io)->write_sheets(io, allEB, "EB"), raw"N:\EB Performance Sheets\consolidated.txt", "w+")
+	dir = "N:\\EB Performance Sheets"
+	clear("EB")
+	store_sheets("EB", (c)->perfXls(c, "EB", dir), store_EB_sheet)
+	open((io)->write_sheets(io, allEB, "EB"), "$dir\\consolidated.txt", "w+")
 end
 
 function procPnt()
+	dir = "N:\\Paint Performance Sheets"
 	clear("Paint")
-	store_sheets("Paint", (c)->perfXls(c, "Paint", "N:\\Paint Performance Sheets"), store_Paint_sheet)
-	open((io)->write_sheets(io, allPaint, "Paint"), raw"N:\Paint Performance Sheets\consolidated.txt", "w+")
+	store_sheets("Paint", (c)->perfXls(c, "Paint", dir), store_Paint_sheet)
+	open((io)->write_sheets(io, allPaint, "Paint"), "$dir\\consolidated.txt", "w+")
 end
 
-procPnt()
+#procPnt()
 procEB()
 
 
