@@ -32,12 +32,16 @@ function store_Paint_sheet(inum, xld, xlfn)
 	vdif!(r, s) = v!(s, Data(r, s) ? dv(r, s) : vv(s))
 	vd!(r, s) = v!(s, dv(r, s))
 	vround!(r, s) = v!(s, convert(Int, round(dv(r, s), RoundNearestTiesUp)))
+	vroundz!(r, s) = v!(s, convert(Int, round(vfifnot!(r, s), RoundNearestTiesUp)))
 	v!(s, v) = vals[val_n[s]] = v
 	vi!(s, r) = vi!(s, convert(Int, dv(r, s)))
 	vz!(s::String) = vals[val_n[s]] = 0	
 	vz!(vs) = foreach(s->vals[val_n[s]] = 0, vs)
+	
+	vfifnot!(r, s) = v!(s, Data(r, s) ? dv(r, s) : 0.0)
+	
 	vzifnot!(r, s) = v!(s, Data(r, s) ? dv(r, s) : 0)
-	vesifnot!(r, s) = v!(s, Data(r, s) ? dv(r, s) : 0)
+	vesifnot!(r, s) = v!(s, Data(r, s) ? dv(r, s) : "")
 	
 	println(data[1,1:end])
 	vals[1] = Dates.value(data[1,2])
@@ -54,7 +58,8 @@ function store_Paint_sheet(inum, xld, xlfn)
 		vdif!(r, "Product")
 		
 		if Data(r, ws_n["Std_Rate_PPH"])
-			foreach((s)->vround!(r, s), ["Std_Rate_PPH", "Product_Max", "Product_Actual", "Product_Variance"])
+			foreach((s)->vround!(r, s), ["Std_Rate_PPH", "Product_Max", "Product_Variance"])
+			vroundz!(r, "Product_Actual")
 			foreach((s)->vdif!(r, s), ["Avail_Hours", "Time_Variance", "Efficiency"])
 		else
 			if Data(r,ws_n["Product"])
@@ -158,7 +163,7 @@ function write_sheets(io, dfn, line)
 end
 
 function perfXls(c, table, shtdir)
-	for xlfn in sort(filter((f)->f[1] != '~' && f[end-4:end] == ".xlsx" && f[1:4]=="2018", readdir(shtdir)))
+	for xlfn in sort(filter((f)->f[1] != '~' && f[end-4:end] == ".xlsx" && f[1:3]=="201", readdir(shtdir)))
 		file_recorded(xlfn, table) || put!(c, (shtdir, xlfn))
 	end
 end
@@ -184,7 +189,7 @@ function procPnt()
 	open((io)->write_sheets(io, allPaint, "Paint"), "$dir\\consolidated.txt", "w+")
 end
 
-#procPnt()
+procPnt()
 procEB()
 
 
