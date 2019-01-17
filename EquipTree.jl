@@ -1,10 +1,6 @@
 
 include("dirs.jl")
 
-
-tabs = raw"Z:\Maintenance\Matt-H\EquipTree\tabbed.txt"
-grph = raw"Z:\Maintenance\Matt-H\EquipTree\tabbed.dot"
-
 struct Node
 	name::String
 	parent::Union{Node, Void}
@@ -49,18 +45,20 @@ function buildTree(io)
 end
 
 
-function writeTree(io, aam)
-	
-	println(io, "digraph Equip {")
-	println(io, "rankdir=LR;")
-	println(io, "a0 [label=\"", aam.name, "\"; shape=\"rarrow\"]")
+function writeTree(aam)
+	grph = raw"Z:\Maintenance\Matt-H\EquipTree\tabbed.dot"
+	dir = raw"Z:\Maintenance\Matt-H\EquipTree"
+	#println(io, "a0 [label=\"", aam.name, "\"; shape=\"rarrow\"]")
 	a = b = c = d = e = f = 0
 	for build in aam.children
-		println(io, "b0 [label=\"", build.name, "\"; shape=\"house\"]")
-		println(io, "a$a->b$b")
+	#	println(io, "b0 [label=\"", build.name, "\"; shape=\"house\"]")
+	#	println(io, "a$a->b$b")
 		for line in build.children
+			io = open("$dir\\$(line.name).dot", "w+")
+			println(io, "digraph Equip {")
+			println(io, "rankdir=LR;")
 			println(io, "c$c [label=\"", line.name, "\"; shape=\"cds\"]")
-			println(io, "b$b->c$c")
+	#		println(io, "b$b->c$c")
 			for equip in line.children
 				println(io, "d$d [label=\"", equip.name, "\"; shape=\"octagon\"]")
 				println(io, "c$c->d$d")
@@ -70,19 +68,18 @@ function writeTree(io, aam)
 					for subass in ass.children
 						println(io, "f$f [label=\"", subass.name, "\"; 	shape=\"box\"]")
 						println(io, "e$e->f$f")
-					
 					end
 					e += 1
 				end
 				d += 1
 			end
+			println(io, "}")
+			close(io)
 			c += 1
 		end
 		b += 1
 	end
-	println(io, "}")
 end
 
-tree = open(buildTree, tabs, "r")
-open((io)->writeTree(io, tree), grph, "w+")
-
+tree = open(buildTree, raw"Z:\Maintenance\Matt-H\EquipTree\tabbed.txt", "r")
+writeTree(tree)
