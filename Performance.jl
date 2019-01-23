@@ -19,12 +19,12 @@ DB_Cols = Dict("EB"=>Dict("Date"=>1, "Leader"=>2, "Shift"=>3, "Line"=>4, "Produc
 function store_Paint_sheet(inum, xld, xlfn)
 	data = readxlsheet(xld * "\\" * xlfn, "Paint")
 	println(xlfn)
-	
+
 	ws_n = WS_Cols["Paint"]
 	val_n = DB_Cols["Paint"]
-	
+
 	vals = Vector{Any}(length(val_n))
-	
+
 	Data(r, n::Integer) = typeof(data[r, n]) != DataValues.DataValue{Union{}}
 	Data(r, s::String) = Data(r, ws_n[s])
 	vv(s) = vals[val_n[s]]
@@ -35,28 +35,28 @@ function store_Paint_sheet(inum, xld, xlfn)
 	vroundz!(r, s) = v!(s, convert(Int, round(vfifnot!(r, s), RoundNearestTiesUp)))
 	v!(s, v) = vals[val_n[s]] = v
 	vi!(s, r) = vi!(s, convert(Int, dv(r, s)))
-	vz!(s::String) = vals[val_n[s]] = 0	
+	vz!(s::String) = vals[val_n[s]] = 0
 	vz!(vs) = foreach(s->vals[val_n[s]] = 0, vs)
-	
+
 	vfifnot!(r, s) = v!(s, Data(r, s) ? dv(r, s) : 0.0)
-	
+
 	vzifnot!(r, s) = v!(s, Data(r, s) ? dv(r, s) : 0)
 	vesifnot!(r, s) = v!(s, Data(r, s) ? dv(r, s) : "")
-	
+
 	println(data[1,1:end])
 	vals[1] = Dates.value(data[1,2])
 	vals[2] = data[1,19]
-	
+
 	for r in 3:50
 		if !Data(r, ws_n["Item"])
 			return inum
 		end
-		
+
 		println(data[r,1:end])
-		
+
 		vdif!(r, "Shift")
 		vdif!(r, "Product")
-		
+
 		if Data(r, ws_n["Std_Rate_PPH"])
 			foreach((s)->vround!(r, s), ["Std_Rate_PPH", "Product_Max", "Product_Variance"])
 			vroundz!(r, "Product_Actual")
@@ -72,17 +72,17 @@ function store_Paint_sheet(inum, xld, xlfn)
 		for s in ["Loss_Mins",  "Quality_Lost_Parts"]
 			vzifnot!(r, s)
 		end
-		
+
 		inum += 1
 		vals[23] = inum
 		vals[24] = xlfn
-		
+
 		#srt(a, b) = val_n[a] < val_n[b]
-		
+
 		#for s in sort(collect(keys(val_n)), lt=srt)
 		#	println(val_n[s], " - ", s, " - ", vals[val_n[s]])
 		#end
-		
+
 		insertPaint(vals)
 	end
 	inum
@@ -91,12 +91,12 @@ end
 function store_EB_sheet(inum, xld, xlfn)
 	data = readxlsheet(xld * "\\" * xlfn, "EB Line")
 	println(xlfn)
-	
+
 	ws_n = WS_Cols["EB"]
 	val_n = DB_Cols["EB"]
-	
+
 	vals = Vector{Any}(length(val_n))
-	
+
 	Data(r, n::Integer) = typeof(data[r, n]) != DataValues.DataValue{Union{}}
 	Data(r, s::String) = Data(r, ws_n[s])
 	vv(s) = vals[val_n[s]]
@@ -106,25 +106,25 @@ function store_EB_sheet(inum, xld, xlfn)
 	vround!(r, s) = v!(s, convert(Int, round(dv(r, s), RoundNearestTiesUp)))
 	v!(s, v) = vals[val_n[s]] = v
 	vi!(s, r) = vi!(s, convert(Int, dv(r, s)))
-	vz!(s::String) = vals[val_n[s]] = 0	
+	vz!(s::String) = vals[val_n[s]] = 0
 	vz!(vs) = foreach(s->vals[val_n[s]] = 0, vs)
 	vzifnot!(r, s) = v!(s, Data(r, s) ? dv(r, s) : 0)
 	vesifnot!(r, s) = v!(s, Data(r, s) ? dv(r, s) : 0)
 
 	vals[1] = Dates.value(data[1,2])
 	vals[2] = data[1,18]
-	
+
 	for r in 3:50
 		if !Data(r, ws_n["Item"])
 			return inum
 		end
-		
+
 		println(data[r,1:end])
-		
+
 		vdif!(r, "Shift")
 		vdif!(r, "Line")
 		vdif!(r, "Product")
-		
+
 		if Data(r,ws_n["Std_Rate_PPH"]) # pph
 			foreach((s)->vround!(r, s), ["Std_Rate_PPH", "Product_Max", "Product_Actual", "Product_Variance"])
 			foreach((s)->vdif!(r, s), ["Avail_Hours", "Time_Variance", "Efficiency"])
@@ -177,19 +177,17 @@ end
 
 function procEB()
 	dir = "N:\\EB Performance Sheets"
-	clear("EB")
+	#clear("EB")
 	store_sheets("EB", (c)->perfXls(c, "EB", dir), store_EB_sheet)
 	open((io)->write_sheets(io, allEB, "EB"), "$dir\\consolidated.txt", "w+")
 end
 
 function procPnt()
 	dir = "N:\\Paint Performance Sheets"
-	clear("Paint")
+	#clear("Paint")
 	store_sheets("Paint", (c)->perfXls(c, "Paint", dir), store_Paint_sheet)
 	open((io)->write_sheets(io, allPaint, "Paint"), "$dir\\consolidated.txt", "w+")
 end
 
 procPnt()
 procEB()
-
-
