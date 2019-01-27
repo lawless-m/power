@@ -176,7 +176,7 @@ function event_counts(lns, edays)
 	evtcounts
 end
 
-function board_stats(prevdays, nextdays)
+function board_stats(io, prevdays, nextdays)
 	lns = lines()
 	done_todo = Dict{String, Tuple{Int, Int}}()
 	today = Dates.value(Date(now()))
@@ -185,17 +185,15 @@ function board_stats(prevdays, nextdays)
 
 	stats = gather_stats()
 	latest = sort(collect(keys(stats)))[end]
-	println(stats[latest])
-	println(lns)
 
 	foreach(l->done_todo[l] = (get(done, l, 0), get(todo, l, 0)), lns)
-	println("Line\tLast $prevdays\tNext $nextdays\tOD\t#OD")
-	foreach(l->println(l, "\t", done_todo[l][1], "\t", done_todo[l][2], "\t", get(stats[latest], l, (0,0,0))[1], "\t", get(stats[latest], l, (0,0,0))[3]), lns)
+	println(io, "Line\tLast $prevdays\tNext $nextdays\tOD\t#OD")
+	foreach(l->println(io, l, "\t", done_todo[l][1], "\t", done_todo[l][2], "\t", get(stats[latest], l, (0,0,0))[1], "\t", get(stats[latest], l, (0,0,0))[3]), lns)
 
 end
 
-overdues()
+#overdues()
 
-list_pms()
+#list_pms()
 
-board_stats(30, 30)
+open(io->board_stats(io, 30, 30), "Z:\\Maintenance\\PPM\\board_stats.txt", "w+")
