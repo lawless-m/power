@@ -6,7 +6,7 @@ using SQLite
 using SQLiteTools
 using DataArrays
 
-export PlexDB, pm_list_by_line, pm_stats_by_date, fill_equipment, lines, insert_pm, clear_pm_tasks, clear_pms, pm_list, update_pm_dates!, insert_pm_stats!
+export PlexDB, pm_list_by_line, pm_stats_by_date, fill_equipment, lines, insert_pm, clear_pm_tasks, clear_pms, pm_list, update_pm_dates!, insert_pm_stats!, completed, gather_events
 
 export missInt, int2date, int2time
 
@@ -35,7 +35,7 @@ clear_pms() = truncate!(PlexDB, "PM")
 
 function insert_pm(ChkNo, ChkKey, Equipment_key, Title, Priority, Frequency, Instructions, ScheduledHours, StartDate, tasks)
 	exebind!(get!(inserts, "PM", SQLite.Stmt(PlexDB, "INSERT INTO PM (ChkNo, ChkKey, Equipment_key, Title, Priority, Frequency, Instructions, ScheduledHours, StartDate) VALUES(?,?,?,?,?,?,?,?,?)")), [ChkNo, ChkKey, Equipment_key, Title, Priority, Frequency, Instructions, ScheduledHours, StartDate])
-		
+
 	foreach((t)->exebind!(get!(inserts, "PM_Task", SQLite.Stmt(PlexDB, "INSERT INTO PM_Task (Task, Instructions, ChkNo, Equipment_key) VALUES(?,?,?,?)")), [t, "", ChkNo, Equipment_key]), tasks)
 end
 
@@ -47,7 +47,7 @@ function pm_list(chan)
 		if typeof(pms[row, :ID]) == Missings.Missing
 			continue
 		end
-		
+
 		pm = Dict{Symbol,Any}()
 		foreach((s)->pm[s] = pms[row, s], [:Line, :ID, :Title, :Priority, :Frequency, :ScheduledHours])
 		tasks = pm_tasks(pms[row, :Equipment_key], pms[row, :ChkNo])
@@ -71,8 +71,36 @@ function pm_tasks(Equipment_key, ChkNo)
 	SQLite.query(PlexDB, "SELECT Task, Instructions from PM_Task WHERE Equipment_key=? AND ChkNo=?", values=[Equipment_key, ChkNo])
 end
 
-update_pm_dates!(src) = foreach((vals)->SQLite.query(PlexDB, "UPDATE PM SET LastComplete=?, DueDate=? WHERE ChkKey=? AND Equipment_key=?", values=vals), Channel(src))	
+update_pm_dates!(src) = foreach((vals)->SQLite.query(PlexDB, "UPDATE PM SET LastComplete=?, DueDate=? WHERE ChkKey=? AND Equipment_key=?", values=vals), Channel(src))
 
 insert_pm_stats!(vals) = exebind!(get!(inserts, "PM_Stats", SQLite.Stmt(PlexDB, "INSERT INTO PM_Stats (Date, Line, OD, High, Items) VALUES(?,?,?,?,?)")), vals)
+
+function completed(from, until)
+	key_val(SQLite.query(PlexDB, "select line, count(*) from PM, Equipment where PM.Equipment_key = Equipment.key and LastComplete >= ? and LastComplete <= ? group by Line", values=[from, until]), 1, 2)
+end
+
+function gather_events(pms, lns, edays)
+	s = Date(now())
+	e = s + Dates.Day(edays)
+	events = Dict{Date, Dict{String, Vector{Int}}}()
+
+	for d in s:Dates.Day(1):e
+		events[d] = Dict{String, Vector{Int}}()
+		for l in lns
+			events[d][l] = Vector{Int}()
+		end
+	end
+
+	for pm in 1:length(pms)
+		if pms[pm][:Priority] != "PM"
+			continue
+		end
+		for d in filter((d)->s < d <= e, pms[pm][:LastComplete]:Dates.Day(pms[pm][:Frequency]):e)
+			push!(events[d][pms[pm][:Line]], pm)
+		end
+	end
+	events
+end
+
 
 end

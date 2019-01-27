@@ -6,49 +6,15 @@ using XlsxWriter
 
 lns = lines()
 
-function gather_events(pms)
-	s = Date(now())
-	e = s + Dates.Day(14)
-	events = Dict{Date, Dict{String, Vector{Int}}}()
-	for d in s:Dates.Day(1):e
-		events[d] = Dict{String, Vector{Int}}()
-		for l in lns
-			events[d][l] = Vector{Int}()
-		end
-	end
-
-	for pm in 1:length(pms)
-		if pms[pm][:Priority] != "PM"
-			continue
-		end
-		for d in filter((d)->s < d <= e, pms[pm][:LastComplete]:Dates.Day(pms[pm][:Frequency]):e)
-			push!(events[d][pms[pm][:Line]], pm)
-		end
-	end
-	events
-end
-
-function max_items_per_line(events)
-	maxs = Dict{String, Int}()
-	foreach((l)->maxs[l] = 0, lns)
-	for d in keys(events)
-		for l in lns
-			maxs[l] = max(maxs[l], length(events[d][l]))
-		end
-	end
-	maxs
-end
-
-function write_events()
+function write_events(edays)
 	pms = collect(Channel(pm_list))
-	events = gather_events(pms)
-	
+	events = gather_events(pms, lns, edays)
+	maxs = max_daily_events_per_line(events)
+
 	wb = Workbook("$home\\power\\PMs\\PM_Plan.xlsx")
 	ws = add_worksheet!(wb, "Plan")
 	wraptop = add_format!(wb, Dict("text_wrap"=>true, "valign"=>"top"))
 
-	maxs = max_items_per_line(events)
-	
 	r = 1
 	for l in sort(collect(keys(maxs)))
 		if maxs[l] == 0
@@ -61,7 +27,7 @@ function write_events()
 	for d in sort(collect(keys(events)))
 		c += 1 + write!(ws, 0, c, Dates.format(d, "yyyy-mm-dd"))
 	end
-	
+
 	c = 1
 	for d in sort(collect(keys(events)))
 		r = 1
@@ -84,24 +50,34 @@ function write_events()
 		write_formula!(ws, r+1, c, "=COUNTIF($range,\"=0\")")
 		write!(ws, r+2, c+1, ":No. Tasks")
 		write_formula!(ws, r+2, c, "=COUNTIF($range,\">=0\")")
-		
+
 		c += 2
 	end
-	
+
 	close(wb)
-	
+
 end
 
-#write_events()
+
+function max_daily_events_per_line(events)
+	maxs = Dict{String, Int}()
+	foreach((l)->maxs[l] = 0, lns)
+	for d in keys(events)
+		for l in lns
+			maxs[l] = max(maxs[l], length(events[d][l]))
+		end
+	end
+	maxs
+end
 
 function write_for_project()
 	wb = Workbook("$home\\power\\PMs\\PM_Proj.xlsx")
 	ws = add_worksheet!(wb, "Project")
 	date_format = add_format!(wb, Dict("num_format"=>"dd/mm/yyyy hh:mm"))
-	
+
 	day(x) = x>0? x/24 : 0
 	eod(d) = DateTime(d) + Dates.Minute(1439)
-	
+
 	write_row!(ws, 0, 0, ["Deadline", "Resource Names", "Duration", "Name", "Notes"])
 	r = 1
 	for pm in Channel(pm_list)
@@ -112,7 +88,5 @@ function write_for_project()
 	close(wb)
 end
 
-write_events()
-write_for_project()
-
-
+write_events(30)
+#write_for_project()
