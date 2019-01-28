@@ -176,7 +176,8 @@ function event_counts(lns, edays)
 	evtcounts
 end
 
-function board_stats(io, prevdays, nextdays)
+function board_stats(prevdays, nextdays)
+    io = open("Z:\\Maintenance\\PPM\\board_stats.txt", "w+")
 	lns = lines()
 	done_todo = Dict{String, Tuple{Int, Int}}()
 	today = Dates.value(Date(now()))
@@ -192,8 +193,8 @@ function board_stats(io, prevdays, nextdays)
 
 end
 
-#overdues()
+overdues()
 
-#list_pms()
+list_pms()
 
-open(io->board_stats(io, 30, 30), "Z:\\Maintenance\\PPM\\board_stats.txt", "w+")
+board_stats(30, 30)
