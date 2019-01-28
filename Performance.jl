@@ -179,14 +179,14 @@ function procEB()
 	dir = "N:\\EB Performance Sheets"
 	#clear("EB")
 	store_sheets("EB", (c)->perfXls(c, "EB", dir), store_EB_sheet)
-	open((io)->write_sheets(io, allEB, "EB"), "$dir\\consolidated.txt", "w+")
+	open((io)->write_sheets(io, allEB, "EB"), "$dir\\EB consolidated.txt", "w+")
 end
 
 function procPnt()
 	dir = "N:\\Paint Performance Sheets"
 	#clear("Paint")
 	store_sheets("Paint", (c)->perfXls(c, "Paint", dir), store_Paint_sheet)
-	open((io)->write_sheets(io, allPaint, "Paint"), "$dir\\consolidated.txt", "w+")
+	open((io)->write_sheets(io, allPaint, "Paint"), "$dir\\Paint consolidated.txt", "w+")
 end
 
 procPnt()
