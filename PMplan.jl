@@ -11,6 +11,7 @@ function write_events(edays)
 	events = gather_events(pms, lns, edays)
 	maxs = max_daily_events_per_line(events)
 
+	println("Writing to ", "$home\\power\\PMs\\PM_Plan.xlsx")
 	wb = Workbook("$home\\power\\PMs\\PM_Plan.xlsx")
 	ws = add_worksheet!(wb, "Plan")
 	wraptop = add_format!(wb, Dict("text_wrap"=>true, "valign"=>"top"))
@@ -88,5 +89,5 @@ function write_for_project()
 	close(wb)
 end
 
-write_events(30)
+write_events(14)
 #write_for_project()
