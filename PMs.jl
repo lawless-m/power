@@ -16,6 +16,28 @@ using XlsxWriter
 
 plex = Plex(credentials["plex"]...)
 
+function populate_pms()
+
+	fill_equipment(equipment(plex, lines()))
+
+	clear_pm_tasks()
+	clear_pms()
+
+	for pm in cache("plex_pms", ()->plex_pms(plex))
+		insert_pm(parse(Int, pm.checklist_no)
+				, parse(Int, pm.checklist_key)
+				, parse(Int, pm.equipkey)
+				, pm.pmtitle
+				, pm.maintfrm.priority
+				, parse(Int, pm.freq)
+				, replace(pm.maintfrm.sinstruct, ['\r', '\n'], "")
+				, pm.maintfrm.hours
+				, Dates.value(pm.start)
+				, pm.maintfrm.tasklist
+				)
+	end
+end
+
 function extract_wrby_year(yr, linecode, lineplx)
 	cache("PMS_$(yr)_$(linecode)_csv", ()->work_requests_pms(plex, Date(yr,1,1), Date(yr, 12, 31), true, filter=Plexus.WR_pms, line=lineplx))
 end
@@ -193,8 +215,13 @@ function board_stats(prevdays, nextdays)
 
 end
 
-overdues()
+#populate_pms()
 
-list_pms()
+#overdues()
+
+# also doesnt work
+#println("PMS\n", work_requests(plex, Date(2018, 11, 1), Date(2019, 2, 1), true, ("", "")), "\nYou like?")
+
+#list_pms()
 
 board_stats(30, 30)
