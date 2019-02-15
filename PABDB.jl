@@ -19,7 +19,7 @@ function insertPAB!(vals)
     last_insert(PabDB)
 end
 
-insertAvailLoss!(vals)
+insertAvailLoss!(vals) = exebind!(vals)
 
 line(handle) = try SQLite.query(PabDB, "SELECT Line from Lines WHERE Handle=?", values=[handle])[1][1] catch "" end
 
