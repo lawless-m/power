@@ -5,17 +5,21 @@ include("dirs.jl")
 using SQLite
 using SQLiteTools
 
-export insertPAB, faultID
+export insertPAB!, faultID, insertAvailLoss!, insertPAB!
 
 PabDB = SQLite.DB("$dbdir\\PABDB.db")
 
-SQLiteTools.insert!(PabDB, "PABi", "INSERT INTO PAB (Line, StartT, EndT, Reason, StopMins, Part, Target, Operator, Actual, Comment) values(?,?,?,?,?,?,?,?,?,?)")
-SQLiteTools.insert!(PabDB, "Faulti", "INSERT INTO Faults (Line, Stage, Fault) values(?,?,?)")
+SQLiteTools.insert!(PabDB, "PABi", "INSERT INTO PAB (Line, StartT, EndT, Reason, StopMins, Part, Target, Operator, Actual, Comment) VALUES(?,?,?,?,?,?,?,?,?,?)")
+SQLiteTools.insert!(PabDB, "Faulti", "INSERT INTO Faults (Line, Stage, Fault) VALUES(?,?,?)")
+SQLiteTools.insert!(PabDB, "AvailLossi", "INSERT INTO AvailabilityLoss (PAB_ID, Fault_ID, Loss) VALUES(?,?,?)")
 
-function insertPAB(vals)
+
+function insertPAB!(vals)
     exebind!("PABi", vals)
     last_insert(PabDB)
 end
+
+insertAvailLoss!(vals)
 
 line(handle) = try SQLite.query(PabDB, "SELECT Line from Lines WHERE Handle=?", values=[handle])[1][1] catch "" end
 
