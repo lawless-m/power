@@ -12,7 +12,10 @@ PabDB = SQLite.DB("$dbdir\\PABDB.db")
 SQLiteTools.insert!(PabDB, "PABi", "INSERT INTO PAB (Line, StartT, EndT, Reason, StopMins, Part, Target, Operator, Actual, Comment) values(?,?,?,?,?,?,?,?,?,?)")
 SQLiteTools.insert!(PabDB, "Faulti", "INSERT INTO Faults (Line, Stage, Fault) values(?,?,?)")
 
-insertPAB(vals) = exebind!("PABi", vals)
+function insertPAB(vals)
+    exebind!("PABi", vals)
+    last_insert(PabDB)
+end
 
 line(handle) = try SQLite.query(PabDB, "SELECT Line from Lines WHERE Handle=?", values=[handle])[1][1] catch "" end
 
