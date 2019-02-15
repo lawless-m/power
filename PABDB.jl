@@ -15,11 +15,15 @@ SQLiteTools.insert!(PabDB, "AvailLossi", "INSERT INTO AvailabilityLoss (PAB_ID, 
 
 
 function insertPAB!(vals)
+    if size(SQLite.query(PabDB, "SELECT Line FROM PAB WHERE Line=? AND StartT=? AND EndT=?", values=[vals[1], vals[2], vals[3]]), 1) > 0
+        return 0
+    end
+
     exebind!("PABi", vals)
-    last_insert(PabDB)
+    return last_insert(PabDB)
 end
 
-insertAvailLoss!(vals) = exebind!(vals)
+insertAvailLoss!(vals) = exebind!("AvailLossi", vals)
 
 line(handle) = try SQLite.query(PabDB, "SELECT Line from Lines WHERE Handle=?", values=[handle])[1][1] catch "" end
 

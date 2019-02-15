@@ -12,18 +12,18 @@ struct PABwb
     directory::String
     filename::String
     line::String
-    date
+    date::Date
+    shift::String
     pab
     availability
     performance
     quality
-    function PABwb(dir, fn, line, dt)
-        wb = openxl(dir * "\\" * fn)
-        pab = readxlsheet(wb, PABsheet(wb), skipstartrows=5, skipstartcols=1, ncols=15, nrows=15)
+    function PABwb(dir, fn, line, dt, wb, shift, pabws, qualws)
+        pab = readxlsheet(wb, pabws, skipstartrows=5, skipstartcols=1, ncols=15, nrows=15)
         avail = readxlsheet(wb, "Availability", skipstartrows=6, skipstartcols=0)
         perf = readxlsheet(wb, "Performance")
-        qual = readxlsheet(wb, qualitysheet(wb))
-        new(wb, dir, fn, line, dt, pab, avail, perf, qual)
+        qual = readxlsheet(wb, qualws)
+        new(wb, dir, fn, line, dt, shift, pab, avail, perf, qual)
     end
 end
 
@@ -88,6 +88,10 @@ function txt2date(txt, default)
     default
 end
 
+function shift(fn)
+    split(split(fn, '.')[1], '_')[end]
+end
+
 function lineDays(ch, dir::String, line::String; since=Date(1970, 1, 1))
     subs = Vector{Tuple{String, String}}()
     for fn in readdir(dir)
@@ -99,17 +103,28 @@ function lineDays(ch, dir::String, line::String; since=Date(1970, 1, 1))
             if length(dbit) == 1
                 dt = txt2date(dbit[1], since)
                 if dt > since
-                    if ch isa Channel
-                        put!(ch, PABwb(dir, fn, line, dt))
+                    if ch isa Channel # ugh sorry
+                        wb = openxl(dir * "\\" * fn)
+                        pabws, qualws = PABsheet(wb), qualitysheet(wb)
+                        if pabws == ""
+                            println(STDERR, dir, "\\", fn, " no PAB")
+                        end
+                        if qualws == ""
+                            println(STDERR, dir, "\\", fn, " no QUAL")
+                        end
+                        if pabws != "" && qualws != ""
+                            put!(ch, PABwb(dir, fn, line, dt, wb, shift(fn), pabws, qualws))
+                        end
                     elseif ch isa IOStream
-                        println(ch, dir, "\t", fn, "\t", line, "\t", dt)
+                        println(ch, dir, "\t", fn, "\t", line, "\t", dt, "\t", shift(fn))
                     else
-                        println(path, dir, "\t", fn, "\t", line, "\t", dt)
+                        println(path, dir, "\t", fn, "\t", line, "\t", dt, "\t", shift(fn))
                     end
                 end
             end
         end
     end
+    # subdirectories
     foreach(p->lineDays(ch, p[2], line, since=since), sort(subs,lt=sublt,rev=true))
 end
 
@@ -124,7 +139,6 @@ end
 
 function qualitysheet(xl)
     for sn in xl.workbook[:sheet_names]()
-        println(sn)
         if length(sn) > 6 && sn[1:7] == "Quality"
             return sn
         end
@@ -139,11 +153,12 @@ end
 
 function availabilityFaults(p::PABwb)
     faults = Dict{Int, Int}()
-    if p.availability[2, 3] != "Wash Plant"
-        println(STDERR, "Old Format")
-        return
+    stage = "Equipment"
+    if p.line in ["EB", "HV"]
+        if p.availability[2, 3] == "Wash Plant"
+            stage = p.availability[2,3]
+        end
     end
-    stage = p.availability[2,3]
     c = 3
     while p.availability[3,c] isa String
         stage = p.availability[2,c] isa String ? p.availability[2,c] : stage
@@ -154,9 +169,7 @@ function availabilityFaults(p::PABwb)
 end
 
 function pabEntry(line, sdte, lastime, part, op, comment, row)
-    if ! (row[1] isa Number)
-        return []
-    end
+
     stime = dte(sdte, row[1])
     etime = dte(sdte, row[2])
     if stime < lastime
@@ -170,33 +183,53 @@ function pabEntry(line, sdte, lastime, part, op, comment, row)
     op = length(row[8]) > 1 ? row[8] : op
     actual = row[9] isa Number ? floor(Int, row[9]) : 0
     comment = length(row[end]) > 0 ? (row[end]=="\"" ? comment : row[end] ) : ""
+    println(STDERR, "s:", stime, "(", Dates.value(stime), ") e:", etime, "(", Dates.value(etime),  ") l:", line)
     stime, part, op, comment, [line, Dates.value(stime), Dates.value(etime), reason, stopt, part, target, op, actual, comment]
 end
 
+function availEntry(faults, row)
+    ae = Dict{Int, Int}()
+    for c in keys(faults)
+        if row[c] isa Number
+            ae[faults[c]] = floor(Int, row[c])
+        end
+    end
+    ae
+end
+
+endtimes = Dict{String, Int}("Late"=>17, "Early"=>11, "Night"=>29)
+
 function PABdata(p::PABwb)
-    println(p.filename)
+    afaults = availabilityFaults(p)
+    endtime = DateTime(p.date) + Dates.Hour(endtimes[p.shift])
     lastime = DateTime(p.date)
     part = ""
     op = ""
     comment = ""
     r = 1
-    while p.pab[r,1] isa Number
+    while p.pab[r,1] isa Number && dte(p.date, p.pab[r,1]) <= endtime
         lastime, part, op, comment, pabvals = pabEntry(p.line, p.date, lastime, part, op, comment, p.pab[r, 1:end])
-        insertPAB(pabvals)
+        newpabID = insertPAB!(pabvals)
+        if newpabID > 0
+            for (faultID, loss) in availEntry(afaults, p.availability[r+2, 1:end])
+                insertAvailLoss!([newpabID, faultID, loss])
+            end
+        else
+            println(STDERR, "?PAB already present")
+            #return
+        end
         r += 1
     end
 end
 
 ###################
 end
-
 k = 1
-for p in Channel(ch->PAB.lineDays(ch, PAB.rootdir * "\\HV", "HV", since=Date(2019, 2, 1)))
+for p in Channel(ch->PAB.lineDays(ch, PAB.rootdir * "\\Auto Line", "Auto1", since=Date(2018, 10, 1)))
     println(p.filename)
     PAB.PABdata(p)
-    println(PAB.availabilityFaults(p))
-    k += 1
-    if k > 3
+    if k > 3100
         exit()
     end
+    k += 1
 end
