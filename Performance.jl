@@ -129,17 +129,9 @@ function store_EB_sheet(inum, xld, xlfn)
 			foreach((s)->vround!(r, s), ["Std_Rate_PPH", "Product_Max", "Product_Actual", "Product_Variance"])
 			foreach((s)->vdif!(r, s), ["Avail_Hours", "Time_Variance", "Efficiency"])
 		else
-			if Data(r,ws_n["Product"])
-				vz!(["Std_Rate_PPH", "Product_Max", "Product_Actual", "Product_Variance", "Avail_Hours", "Time_Variance", "Efficiency"])
-			end
+			Data(r,ws_n["Product"]) && vz!(["Std_Rate_PPH", "Product_Max", "Product_Actual", "Product_Variance", "Avail_Hours", "Time_Variance", "Efficiency"])
 		end
-		for s in ["Item", "Process", "Problem", "Loss_Mins", "Effect", "OEE_Element", "Action", "Fix_Or_Repair", "Weld_Section_Due"]
-			if Data(r,s)
-				vd!(r, s)
-			else
-				v!(s, s=="Loss_Mins" ? 0 : "")
-			end
-		end
+		foreach(s-> Data(r,s) ? vd!(r, s) : v!(s, s=="Loss_Mins" ? 0 : ""), ["Item", "Process", "Problem", "Loss_Mins", "Effect", "OEE_Element", "Action", "Fix_Or_Repair", "Weld_Section_Due"])
 
 		inum += 1
 		v!("IncidentNo", inum)
@@ -155,9 +147,7 @@ function write_sheets(io, dfn, line)
 	for row in 1:size(rows,1)
 		print(io, rows[row, 1])
 		print(io, "\t", Dates.format(DateTime(Dates.UTM(rows[row,2])), "yyyy-mm-dd"))
-		for c in 3:cells
-			print(io, "\t", rows[row,c])
-		end
+		foreach(c->print(io, "\t", rows[row,c]), 3:cells)
 		println(io)
 	end
 end
