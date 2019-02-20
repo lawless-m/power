@@ -1,4 +1,4 @@
-
+2
 include("../../credentials.jl")
 include("dirs.jl")
 
@@ -40,7 +40,7 @@ function store_Paint_sheet(inum, xld, xlfn)
 
 	vfifnot!(r, s) = v!(s, Data(r, s) ? dv(r, s) : 0.0)
 
-	vzifnot!(r, s) = v!(s, Data(r, s) ? dv(r, s) : 0)
+	vzifnot!(r, s) = v!(s, Data(r, s) ? (dv(r, s) isa Number ? dv(r, s) : 0) : 0)
 	vesifnot!(r, s) = v!(s, Data(r, s) ? dv(r, s) : "")
 
 	println(data[1,1:end])
@@ -48,7 +48,7 @@ function store_Paint_sheet(inum, xld, xlfn)
 	vals[2] = data[1,19]
 
 	for r in 3:50
-		if !Data(r, ws_n["Item"])
+		if (!Data(r, ws_n["Item"])) && (!Data(r, ws_n["Quality_Defect_Type"]))
 			return inum
 		end
 
@@ -108,7 +108,7 @@ function store_EB_sheet(inum, xld, xlfn)
 	vi!(s, r) = vi!(s, convert(Int, dv(r, s)))
 	vz!(s::String) = vals[val_n[s]] = 0
 	vz!(vs) = foreach(s->vals[val_n[s]] = 0, vs)
-	vzifnot!(r, s) = v!(s, Data(r, s) ? dv(r, s) : 0)
+		vzifnot!(r, s) = v!(s, Data(r, s) ? (dv(r, s) isa Number ? dv(r, s) : 0) : 0)
 	vesifnot!(r, s) = v!(s, Data(r, s) ? dv(r, s) : 0)
 
 	vals[1] = Dates.value(data[1,2])
@@ -180,4 +180,4 @@ function procPnt()
 end
 
 procPnt()
-procEB()
+#procEB()
