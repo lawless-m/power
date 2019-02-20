@@ -108,7 +108,7 @@ function store_EB_sheet(inum, xld, xlfn)
 	vi!(s, r) = vi!(s, convert(Int, dv(r, s)))
 	vz!(s::String) = vals[val_n[s]] = 0
 	vz!(vs) = foreach(s->vals[val_n[s]] = 0, vs)
-		vzifnot!(r, s) = v!(s, Data(r, s) ? (dv(r, s) isa Number ? dv(r, s) : 0) : 0)
+	vzifnot!(r, s) = v!(s, Data(r, s) ? (dv(r, s) isa Number ? dv(r, s) : 0) : 0)
 	vesifnot!(r, s) = v!(s, Data(r, s) ? dv(r, s) : 0)
 
 	vals[1] = Dates.value(data[1,2])
