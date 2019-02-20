@@ -6,6 +6,7 @@ export lineFlds
 
 using ExcelReaders
 using PABDB
+using SQLiteTools
 
 struct PABwb
     wb
@@ -197,7 +198,7 @@ function availEntry(faults, row)
     ae
 end
 
-endtimes = Dict{String, Int}("Late"=>17, "Early"=>11, "Night"=>29)
+endtimes = Dict{String, Int}("Late"=>17, "Early"=>11, "Night"=>29, "Weekend"=>15)
 
 function PABdata(p::PABwb)
     afaults = availabilityFaults(p)
@@ -224,12 +225,71 @@ end
 
 ###################
 end
-k = 1
-for p in Channel(ch->PAB.lineDays(ch, PAB.rootdir * "\\Auto Line", "Auto1", since=Date(2018, 10, 1)))
-    println(p.filename)
-    PAB.PABdata(p)
-    if k > 3100
-        exit()
+
+using SQLiteTools
+using XlsxWriter
+
+function importDailies()
+    for (d,l) in [("Auto Line", "Auto1"), ("Auto Line 2 Volvo", "Auto2"), ("E.B", "EB"), ("Flexi Line", "Flexi"), ("HV", "HV"), ("Paint Line", "Paint")]
+        for p in Channel(ch->PAB.lineDays(ch, PAB.rootdir * "\\" * d, l, since=Date(2019, 1, 1)))
+            println(p.filename)
+            PAB.PABdata(p)
+        end
     end
-    k += 1
 end
+
+function availabilityColouring()
+    wb = Workbook("Z:\\Maintenance\\Matt-H\\power\\OEE\\Avail.xlsx")
+	thirty = add_format!(wb, Dict("rotation"=>45))
+    day_fmt = add_format!(wb, Dict("num_format"=>"dd/mm/yy"))
+    time_fmt = add_format!(wb, Dict("num_format"=>"hh:mm"))
+    ws = add_worksheet!(wb, "Auto1")
+    flts = PABDB.faultList()
+    fault_cols = Dict{Int, Int}()
+
+    write!(ws, 1, 0, "Day")
+    set_column!(ws, 1, 0, 10)
+    write!(ws, 1, 1, "Start")
+    set_column!(ws, 1, 1, 5)
+    write!(ws, 1, 2, "End")
+    set_column!(ws, 1, 2, 5)
+
+    stagec = 3
+
+    for s in keys(flts["Auto1"])
+        write!(ws, 0, stagec, s)
+        for e in keys(flts["Auto1"][s])
+            write!(ws, 1, stagec, e, thirty)
+            set_column!(ws, 1, stagec, 3)
+            fault_cols[flts["Auto1"][s][e]] = stagec
+            stagec += 1
+        end
+    end
+
+    startt = DateTime(2019, 1, 1, 0, 0, 0)
+    endt = DateTime(2019, 2, 15, 0, 0, 0)
+
+    pabs = PABDB.pabsBetween(startt, endt)
+    aloss = PABDB.availLossBetween(startt, endt)
+
+    for r in 1:size(pabs,1)
+        if pabs[r, :Line] == "Auto1"
+            write!(ws, 1+r, 0, int2time(pabs[r, :StartT]), day_fmt)
+            write!(ws, 1+r, 1, int2time(pabs[r, :StartT]), time_fmt)
+            write!(ws, 1+r, 2, int2time(pabs[r, :EndT]), time_fmt)
+
+            for a in 1:size(aloss,1)
+                if aloss[a, :PAB_ID] == pabs[r, :id]
+                    write!(ws, 1+r, fault_cols[aloss[a, :Fault_ID]], aloss[a, :Loss])
+                end
+            end
+
+            write!(ws, 1+r, stagec, pabs[r, :Comment])
+        end
+    end
+
+    close(wb)
+end
+
+#importDailies()
+availabilityColouring()
