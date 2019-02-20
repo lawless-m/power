@@ -173,7 +173,8 @@ function overdues()
 
 	pms = pm_list_by_line()
 
-	for row in 1:size(pms,1)
+
+	for row in filter(r->typeof(pms[r, :Line]) == String, 1:size(pms,1))
 		od = today - missInt(pms[row, :DueDate])
 		od = od == today ? 0 : od
 		if od > 0
@@ -222,6 +223,6 @@ overdues()
 # also doesnt work
 #println("PMS\n", work_requests(plex, Date(2018, 11, 1), Date(2019, 2, 1), true, ("", "")), "\nYou like?")
 
-#list_pms()
+list_pms()
 
 board_stats(30, 30)
