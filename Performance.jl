@@ -180,4 +180,4 @@ function procPnt()
 end
 
 procPnt()
-#procEB()
+procEB()
