@@ -59,7 +59,7 @@ sublist = Dict{String, Int}(
     "Auto Line 2 Litens USE VOLVO"=>1
 )
 
-for y in 208:Dates.year(now())+2
+for y in 2008:Dates.year(now())+2
     sublist["$y"] = y
 end
 
@@ -184,7 +184,7 @@ function pabEntry(line, sdte, lastime, part, op, comment, row)
     op = length(row[8]) > 1 ? row[8] : op
     actual = row[9] isa Number ? floor(Int, row[9]) : 0
     comment = length(row[end]) > 0 ? (row[end]=="\"" ? comment : row[end] ) : ""
-    println(STDERR, "s:", stime, "(", Dates.value(stime), ") e:", etime, "(", Dates.value(etime),  ") l:", line)
+    #println(STDERR, "s:", stime, "(", Dates.value(stime), ") e:", etime, "(", Dates.value(etime),  ") l:", line)
     stime, part, op, comment, [line, Dates.value(stime), Dates.value(etime), reason, stopt, part, target, op, actual, comment]
 end
 
@@ -207,8 +207,15 @@ function PABdata(p::PABwb)
     part = ""
     op = ""
     comment = ""
+    #for r in 1:size(p.pab, 1)
+    #    println("P ", r, " - ", p.pab[r,1:end])
+    #end
+    #for r in 1:size(p.availability, 1)
+    #    println("A ", r, " - ", p.availability[r,1:end])
+    #end
     r = 1
-    while p.pab[r,1] isa Number && dte(p.date, p.pab[r,1]) <= endtime
+
+    while p.pab[r,1] isa Number && (p.pab[r,4] isa Number || p.pab[r,9] isa Number)
         lastime, part, op, comment, pabvals = pabEntry(p.line, p.date, lastime, part, op, comment, p.pab[r, 1:end])
         newpabID = insertPAB!(pabvals)
         if newpabID > 0
@@ -219,7 +226,17 @@ function PABdata(p::PABwb)
             println(STDERR, "?PAB already present")
             #return
         end
+        #if r == 1
+        #    for c = 1:13
+        #           print(STDERR, p.pab[r,c], "\t")
+        ##    end
+        #    println(STDERR, "")
+        #end
         r += 1
+        #for c = 1:13
+        #    print(STDERR, p.pab[r,c], "\t")
+        #end
+        #println(STDERR, "")
     end
 end
 
@@ -229,21 +246,40 @@ end
 using SQLiteTools
 using XlsxWriter
 
-function importDailies()
+function importDailies(since::DateTime=Date(2019, 1, 1))
     for (d,l) in [("Auto Line", "Auto1"), ("Auto Line 2 Volvo", "Auto2"), ("E.B", "EB"), ("Flexi Line", "Flexi"), ("HV", "HV"), ("Paint Line", "Paint")]
-        for p in Channel(ch->PAB.lineDays(ch, PAB.rootdir * "\\" * d, l, since=Date(2019, 1, 1)))
+#    for (d,l) in [("Auto Line", "Auto1")]
+        for p in Channel(ch->PAB.lineDays(ch, PAB.rootdir * "\\" * d, l, since=since))
             println(p.filename)
             PAB.PABdata(p)
         end
     end
 end
 
-function availabilityColouring()
-    wb = Workbook("Z:\\Maintenance\\Matt-H\\power\\OEE\\Avail.xlsx")
-	thirty = add_format!(wb, Dict("rotation"=>45))
-    day_fmt = add_format!(wb, Dict("num_format"=>"dd/mm/yy"))
-    time_fmt = add_format!(wb, Dict("num_format"=>"hh:mm"))
-    ws = add_worksheet!(wb, "Auto1")
+struct Wb
+    wb
+    fmts::Dict
+    function Wb()
+        wb = Workbook("Z:\\Maintenance\\Matt-H\\power\\OEE\\Avail.xlsx")
+        fmts = Dict()
+        fmts["angle"] = add_format!(wb, Dict("rotation"=>45))
+        fmts["day_fmt"] = add_format!(wb, Dict("num_format"=>"dd/mm/yy"))
+        fmts["time_fmt"] = add_format!(wb, Dict("num_format"=>"hh:mm"))
+        new(wb, fmts)
+    end
+end
+
+function availabilityColour(startt, endt)
+    wb = Wb()
+    for line in ["Auto1", "Auto2", "EB", "Flexi", "HV", "Paint"]
+        availabilityColourLine(wb, line, startt, endt)
+    end
+    close(wb.wb)
+end
+
+
+function availabilityColourLine(wb::Wb, line, startt, endt)
+    ws = add_worksheet!(wb.wb, line)
     flts = PABDB.faultList()
     fault_cols = Dict{Int, Int}()
 
@@ -256,40 +292,37 @@ function availabilityColouring()
 
     stagec = 3
 
-    for s in keys(flts["Auto1"])
-        write!(ws, 0, stagec, s)
-        for e in keys(flts["Auto1"][s])
-            write!(ws, 1, stagec, e, thirty)
+    for s in keys(flts[line])
+        write!(ws, 0, stagec, s, wb.fmts["angle"])
+        for e in keys(flts[line][s])
+            write!(ws, 1, stagec, e, wb.fmts["angle"])
             set_column!(ws, 1, stagec, 3)
-            fault_cols[flts["Auto1"][s][e]] = stagec
+            fault_cols[flts[line][s][e]] = stagec
             stagec += 1
         end
     end
 
-    startt = DateTime(2019, 1, 1, 0, 0, 0)
-    endt = DateTime(2019, 2, 15, 0, 0, 0)
-
     pabs = PABDB.pabsBetween(startt, endt)
     aloss = PABDB.availLossBetween(startt, endt)
 
+    outr = 2
     for r in 1:size(pabs,1)
-        if pabs[r, :Line] == "Auto1"
-            write!(ws, 1+r, 0, int2time(pabs[r, :StartT]), day_fmt)
-            write!(ws, 1+r, 1, int2time(pabs[r, :StartT]), time_fmt)
-            write!(ws, 1+r, 2, int2time(pabs[r, :EndT]), time_fmt)
+        if pabs[r, :Line] == line
+            write!(ws, outr, 0, int2time(pabs[r, :StartT]), wb.fmts["day_fmt"])
+            write!(ws, outr, 1, int2time(pabs[r, :StartT]), wb.fmts["time_fmt"])
+            write!(ws, outr, 2, int2time(pabs[r, :EndT]), wb.fmts["time_fmt"])
 
             for a in 1:size(aloss,1)
                 if aloss[a, :PAB_ID] == pabs[r, :id]
-                    write!(ws, 1+r, fault_cols[aloss[a, :Fault_ID]], aloss[a, :Loss])
+                    write!(ws, outr, fault_cols[aloss[a, :Fault_ID]], aloss[a, :Loss])
                 end
             end
 
-            write!(ws, 1+r, stagec, pabs[r, :Comment])
+            write!(ws, outr, stagec, pabs[r, :Comment])
+            outr += 1
         end
     end
-
-    close(wb)
 end
 
-#importDailies()
-availabilityColouring()
+#importDailies(DateTime(2019, 2, 1))
+availabilityColour(DateTime(2019, 2, 21), now())
