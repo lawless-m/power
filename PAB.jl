@@ -185,7 +185,7 @@ function pabEntry(line, sdte, lastime, part, op, comment, row)
     actual = row[9] isa Number ? floor(Int, row[9]) : 0
     comment = length(row[end]) > 0 ? (row[end]=="\"" ? comment : row[end] ) : ""
     #println(STDERR, "s:", stime, "(", Dates.value(stime), ") e:", etime, "(", Dates.value(etime),  ") l:", line)
-    stime, part, op, comment, [line, Dates.value(stime), Dates.value(etime), reason, stopt, part, target, op, actual, comment]
+    [line, stime, etime, reason, stopt, part, target, op, actual, comment]
 end
 
 function availEntry(faults, row)
@@ -200,7 +200,7 @@ end
 
 endtimes = Dict{String, Int}("Late"=>17, "Early"=>11, "Night"=>29, "Weekend"=>15)
 
-function PABdata(p::PABwb)
+function PABdata(p::PABwb, io::Union{Void, IOStream}=nothing)
     afaults = availabilityFaults(p)
     endtime = DateTime(p.date) + Dates.Hour(endtimes[p.shift])
     lastime = DateTime(p.date)
@@ -216,16 +216,27 @@ function PABdata(p::PABwb)
     r = 1
 
     while p.pab[r,1] isa Number && (p.pab[r,4] isa Number || p.pab[r,9] isa Number)
-        lastime, part, op, comment, pabvals = pabEntry(p.line, p.date, lastime, part, op, comment, p.pab[r, 1:end])
-        newpabID = insertPAB!(pabvals)
+
+        #for pc in 1:size(p.pab[r],2)
+        #    print(pc, ":P>", p.pab[r,pc], "< ")
+        #end
+        #println()
+
+        pabvals = pabEntry(p.line, p.date, lastime, part, op, comment, p.pab[r, 1:end])
+        newpabID = insertPAB!(pabvals, io)
         if newpabID > 0
-            for (faultID, loss) in availEntry(afaults, p.availability[r+2, 1:end])
+            for (faultID, loss) in availEntry(afaults, p.availability[r+3, 1:end])
+                #println([newpabID, faultID, loss])
                 insertAvailLoss!([newpabID, faultID, loss])
             end
         else
             println(STDERR, "?PAB already present")
             #return
         end
+        lastime = pabvals[2]
+        part = pabvals[6]
+        op = pabvals[8]
+        comment = pabvals[10]
         #if r == 1
         #    for c = 1:13
         #           print(STDERR, p.pab[r,c], "\t")
@@ -247,11 +258,12 @@ using SQLiteTools
 using XlsxWriter
 
 function importDailies(since::DateTime=Date(2019, 1, 1))
+    io = open("c:\\temp\\dailies.sql", "w+")
     for (d,l) in [("Auto Line", "Auto1"), ("Auto Line 2 Volvo", "Auto2"), ("E.B", "EB"), ("Flexi Line", "Flexi"), ("HV", "HV"), ("Paint Line", "Paint")]
 #    for (d,l) in [("Auto Line", "Auto1")]
         for p in Channel(ch->PAB.lineDays(ch, PAB.rootdir * "\\" * d, l, since=since))
             println(p.filename)
-            PAB.PABdata(p)
+            PAB.PABdata(p, io)
         end
     end
 end
@@ -324,5 +336,5 @@ function availabilityColourLine(wb::Wb, line, startt, endt)
     end
 end
 
-#importDailies(DateTime(2019, 2, 1))
-availabilityColour(DateTime(2019, 2, 21), now())
+importDailies(DateTime(2019, 2, 26))
+availabilityColour(DateTime(2019, 2, 26), now())

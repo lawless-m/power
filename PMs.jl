@@ -216,7 +216,7 @@ function board_stats(prevdays, nextdays)
 
 end
 
-#populate_pms()
+populate_pms()
 
 overdues()
 

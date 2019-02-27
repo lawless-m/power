@@ -4,20 +4,32 @@ include("dirs.jl")
 
 using SQLite
 using SQLiteTools
+using DBAbstracts
 
 export insertPAB!, faultID, insertAvailLoss!, insertPAB!
 
 PabDB = SQLite.DB("$dbdir\\PABDB.db")
 
-SQLiteTools.insert!(PabDB, "PABi", "INSERT INTO PAB (Line, StartT, EndT, Reason, StopMins, Part, Target, Operator, Actual, Comment) VALUES(?,?,?,?,?,?,?,?,?,?)")
-SQLiteTools.insert!(PabDB, "Faulti", "INSERT INTO Faults (Line, Stage, Fault) VALUES(?,?,?)")
-SQLiteTools.insert!(PabDB, "AvailLossi", "INSERT INTO AvailabilityLoss (PAB_ID, Fault_ID, Loss) VALUES(?,?,?)")
+inserts = Dict{String, Insert}()
+inserts["PABi"] = Insert("PAB", ["Line", "StartT", "EndT", "Reason", "StopMins", "Part", "Target", "Operator", "Actual", "Comment"])
+inserts["Faulti"] = Insert("Faults", ["Line", "Stage", "Fault"])
+inserts["AvailLossi"] = Insert("AvailabilityLoss", ["PAB_ID", "Fault_ID", "Loss"])
 
-function insertPAB!(vals)
+for (k,i) in inserts
+    st = IOBuffer()
+    stmt(st, i)
+    SQLiteTools.insert!(PabDB, k, String(st))
+end
+
+function insertPAB!(vals, io::Union{Void, IOStream}=nothing)
     if size(SQLite.query(PabDB, "SELECT Line FROM PAB WHERE Line=? AND StartT=? AND EndT=?", values=[vals[1], vals[2], vals[3]]), 1) > 0
         return 0
     end
-    exebind!("PABi", vals)
+    if typeof(io) == IOStream
+        set!(inserts["PABi"], vals)
+        sql(io, inserts["PABi"])
+    end
+    exebind!("PABi", map(t->typeof(t)==DateTime?Dates.value(t):t, vals))
     return last_insert(PabDB)
 end
 
