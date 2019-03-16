@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Chart</title>
+    <script type="text/javascript" src="https://d3js.org/d3.v5.min.js"></script>
+  </head>
+  <body>
+    <script type="text/javascript">
+    var w = 1500;
+    var h = 300;
+    var yscale = d3.scaleLinear().domain([0, 10]).range([0, h]);
+    var svg = d3.select("body").append("svg").attr("width", w).attr("height", h)
+    var dataset = [
+["Auto 1", "W7", "done", 2, 7],
+["Auto 1", "W7", "undone", 2, 7],
+["Auto 1", "W8", "done", 3, 1],
+["Auto 1", "W8", "undone", 3, 1],
+["Auto 1", "W9", "done", 3, 3],
+["Auto 1", "W9", "undone", 3, 3],
+["Auto 1", "W10", "done", 5, 3],
+["Auto 1", "W10", "undone", 5, 3],
+[],
+["EB", "W7", "done", 7, 2],
+["EB", "W7", "undone", 7, 2],
+["EB", "W8", "done", 5, 0],
+["EB", "W8", "undone", 5, 0],
+["EB", "W9", "done", 7, 1],
+["EB", "W9", "undone", 7, 1],
+["EB", "W10", "done", 2, 3],
+["EB", "W10", "undone", 2, 3],
+[],
+["Auto 2", "W7", "done", 9, 0],
+["Auto 2", "W7", "undone", 9, 0],
+["Auto 2", "W8", "done", 0, 0],
+["Auto 2", "W8", "undone", 0, 0],
+["Auto 2", "W9", "done", 5, 0],
+["Auto 2", "W9", "undone", 5, 0],
+["Auto 2", "W10", "done", 0, 0],
+["Auto 2", "W10", "undone", 0, 0],
+[],
+["Flex", "W7", "done", 0, 4],
+["Flex", "W7", "undone", 0, 4],
+["Flex", "W8", "done", 5, 0],
+["Flex", "W8", "undone", 5, 0],
+["Flex", "W9", "done", 3, 1],
+["Flex", "W9", "undone", 3, 1],
+["Flex", "W10", "done", 1, 1],
+["Flex", "W10", "undone", 1, 1],
+[],
+["Coating", "W7", "done", 3, 2],
+["Coating", "W7", "undone", 3, 2],
+["Coating", "W8", "done", 4, 0],
+["Coating", "W8", "undone", 4, 0],
+["Coating", "W9", "done", 4, 0],
+["Coating", "W9", "undone", 4, 0],
+["Coating", "W10", "done", 1, 0],
+["Coating", "W10", "undone", 1, 0],
+[],
+["HV", "W7", "done", 4, 0],
+["HV", "W7", "undone", 4, 0],
+["HV", "W8", "done", 1, 0],
+["HV", "W8", "undone", 1, 0],
+["HV", "W9", "done", 3, 0],
+["HV", "W9", "undone", 3, 0],
+["HV", "W10", "done", 3, 0],
+["HV", "W10", "undone", 3, 0],
+]
+    var xscale = d3.scaleLinear().domain([0, 21*dataset.length]).range([0, w]).nice(0);
+
+    var x = 0;
+    xfn = function(d,i) {
+      if (d.length == 0 || d[2] == "done") {
+        x += 21;
+      }
+      return xscale(x);
+    }
+    yfn = function(d) {
+      if (d.length == 0) return 0;
+      if (d[2] == "done")
+        return h - yscale(d[3]);
+      else
+        return h - yscale(d[3]) - yscale(d[4]);
+    }
+    hfn = function(d) {
+      if (d.length == 0) return 0;
+      if (d[2] == "done")
+        return yscale(d[3]);
+      else
+        return yscale(d[4]);
+    }
+    fillfn = function(d) {
+      if (d[2] == "done") {
+        return "rgb(0,100,160)"
+      }
+      if (d[2] == "undone") {
+        return "rgb(240,125,50)"
+      }
+    }
+    svg.selectAll("rect")
+      .data(dataset)
+      .enter()
+      .append("rect")
+      .attr("x", xfn)
+      .attr("y", yfn)
+      .attr("width", xscale(20))
+      .attr("height", hfn)
+      .attr("fill", fillfn)
+    var xAxis = d3.axisBottom()
+    xAxis.scale(xscale)
+    svg.append("g").call(xAxis)
+  var yAxis = d3.axisLeft()
+  yAxis.scale(yscale)
+  svg.append("g")
+    .attr("transform", "translate(20,0)")
+    .call(yAxis)
+    </script>
+  </body>
+</html>
