@@ -106,6 +106,9 @@
       .attr("width", xscale(20))
       .attr("height", hfn)
       .attr("fill", fillfn)
+      svg.selectAll("rect")
+        .data(dataset)
+
     var xAxis = d3.axisBottom()
     xAxis.scale(xscale)
     svg.append("g").call(xAxis)

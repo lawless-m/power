@@ -198,11 +198,11 @@ function availEntry(faults, row)
     ae
 end
 
-endtimes = Dict{String, Int}("Late"=>17, "Early"=>11, "Night"=>29, "Weekend"=>15)
+endtimes = Dict{String, Int}("LATE"=>17, "EARLY"=>11, "NIGHT"=>29, "WEEKEND"=>15)
 
 function PABdata(p::PABwb, io::Union{Void, IOStream}=nothing)
     afaults = availabilityFaults(p)
-    endtime = DateTime(p.date) + Dates.Hour(endtimes[p.shift])
+    endtime = DateTime(p.date) + Dates.Hour(endtimes[uppercase(p.shift)])
     lastime = DateTime(p.date)
     part = ""
     op = ""
@@ -336,5 +336,67 @@ function availabilityColourLine(wb::Wb, line, startt, endt)
     end
 end
 
-importDailies(DateTime(2019, 2, 26))
-availabilityColour(DateTime(2019, 2, 26), now())
+function MTBF(line, st, se)
+    faults = PABDB.idfaults(line)
+    availtime = Dict{Int, Vector{Int}}()
+    downtime = Dict{Int, Vector{Tuple{DateTime, DateTime, Int, Int}}}()
+    for k in keys(faults)
+        downtime[k] = Vector{Int}()
+    end
+    lstart = 0
+    slots = PABDB.all_slots(line, st, se)
+    for r in 1:size(slots, 1)
+        #println(slots[r, 1:end])
+        if typeof(slots[r, :loss]) != Missings.Missing
+            push!(downtime[slots[r,:fault_id]], (int2time(slots[r, :startT]), int2time(slots[r, :endT]), 60 - slots[r, :stopmins], slots[r, :loss]))
+        end
+    end
+    contiguous = Dict{Int, Vector{Int}}()
+    for f in keys(faults)
+        contiguous[f] = Vector{Int}()
+        loss = 0
+        le = 0
+        for d in downtime[f] # d = (startt, endt, avail, loss)
+            if d[3] == d[4] # whole of this period was lost
+                le = d[2]
+                loss += d[4]
+                continue
+            end
+
+            if le == 0
+                push!(contiguous[f], d[4])
+                continue
+            end
+
+            if le == d[1]
+                push!(contiguous[f], loss+d[4])
+                continue
+            end
+
+            push!(contiguous[f], loss)
+            push!(contiguous[f], d[4])
+
+            loss = 0
+            le = 0
+        end
+        if loss > 0
+            push!(contiguous[f], loss)
+        end
+    end
+    println(line, "\n From $st to $se")
+    for k in keys(downtime)
+        if length(contiguous[k]) > 0
+            println(faults[k][1], "-", faults[k][2], " > ", length(contiguous[k]), " Events, MTTR: ", round(mean(contiguous[k]), 1), ", Event Lengths: ", contiguous[k])
+        else
+            println(faults[k][1], "-", faults[k][2], " > 0 Events")
+        end
+    end
+end
+
+# importDailies(DateTime(2019, 4, 1))
+# availabilityColour(DateTime(2019, 4, 1), now())
+println("Availability Events")
+for line in ["Auto1", "Auto2", "EB", "Flexi", "HV", "Paint"]
+    MTBF(line, DateTime(2019,4,1,0,0,0), DateTime(2019, 5, 1, 0,0,0))
+    println()
+end

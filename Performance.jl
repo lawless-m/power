@@ -89,8 +89,8 @@ function store_Paint_sheet(inum, xld, xlfn)
 end
 
 function store_EB_sheet(inum, xld, xlfn)
-	data = readxlsheet(xld * "\\" * xlfn, "EB Line")
 	println(xlfn)
+	data = readxlsheet(xld * "\\" * xlfn, "EB Line")
 
 	ws_n = WS_Cols["EB"]
 	val_n = DB_Cols["EB"]

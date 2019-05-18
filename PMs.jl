@@ -107,7 +107,7 @@ end
 
 function list_pms()
 
-	wb = Workbook("$outdir\\PM_Tasks.xlsx")
+	wb = Workbook("$outdir\\PM_Tasks_W$(Dates.week(now())).xlsx")
 	sheets = Dict{String, Tuple{Worksheet, Int, Int}}()
 
 	wraptop = add_format!(wb, Dict("text_wrap"=>true, "valign"=>"top"))
@@ -210,6 +210,7 @@ function board_stats(prevdays, nextdays)
 	stats = gather_stats()
 	latest = sort(collect(keys(stats)))[end]
 
+	println(io, now())
 	foreach(l->done_todo[l] = (get(done, l, 0), get(todo, l, 0)), lns)
 	println(io, "Line\tLast $prevdays\tNext $nextdays\tOD\t#OD")
 	foreach(l->println(io, l, "\t", done_todo[l][1], "\t", done_todo[l][2], "\t", get(stats[latest], l, (0,0,0))[1], "\t", get(stats[latest], l, (0,0,0))[3]), lns)
