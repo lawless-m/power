@@ -141,14 +141,235 @@ function store_EB_sheet(inum, xld, xlfn)
 	inum
 end
 
+function eb_causes(a, b)
+	cause = ""
+	if a in ["Bar code", "barcode labeller", "barcode ", "Barcode rejects", "Label Printer", "Label printer"]
+		cause = "Barcode printer"
+	elseif a in ["Briefing", "briefing"]
+		cause = "Planned"
+	elseif a in ["Bay clean", "Bay Clean"]
+		cause = "PPM"
+	elseif a == "Build"
+		if b == "parts"
+			cause = "No Parts"
+		elseif b == "SECTION"
+			cause = "Section"
+		elseif b == "set up"
+			cause = "Changeover"
+		elseif b == "tooling"
+			cause = "Tooling"
+		else
+			cause = "Build"
+		end
+	elseif a in ["Camera", "camera"]
+		cause = "Camera"
+	elseif a in ["Cell Exit", "Changeover"]
+		if b == "Run Out"
+			cause = "Run Out"
+		elseif b == "Filament"
+			cause = "Filament"
+		elseif b in ["section", "SECTION", "Section", "Secton"]
+			cause = "Section"
+		else
+			cause = "Changeover"
+		end
+	elseif a == "Cell Load"
+		if b == "cold start"
+			cause = "Cold Start"
+		elseif b == "line fill"
+			cause = "Line Fill"
+		elseif b == "process"
+			cause = "Line Fill"
+		else
+			cause = "Cold Start"
+		end
+	elseif a == "Cell runout"
+		cause = "Run out"
+	elseif a == "Changeover"
+		if b == "cell Runout"
+			cause = "Run out"
+		elseif b == "Filament"
+			cause = "Filament"
+		elseif b == "line fill"
+			cause = "Line fill"
+		elseif b == "Run Out"
+			b = "Run Out"
+		elseif b in ["section", "SECTION", "Section"]
+			cause = "Section"
+		else
+			cause = "Changeover"
+		end
+	elseif a == "Checks"
+		cause = "TPM"
+	elseif a == "Daily pms"
+		if b == "cold start"
+			cause = "Cold Start"
+		else
+			cause = "TPMs"
+		end
+	elseif a in ["Cold start", "Cold Start"]
+		cause = "Cold Start"
+	elseif a == "Domino printer"
+		cause = "Barcode printer"
+	elseif a == "Dot Matrix"
+		cause = "Dot Matrix"
+	elseif a == "Elbow"
+		cause = "Planned"
+	elseif a == "Engineer on line"
+		cause = "Planned"
+	elseif a == "Filament"
+		if b in ["SECTION", "Secton", "Section"]
+			cause = "Section"
+		else
+			cause = "Filament"
+		end
+	elseif a == "Fill"
+		if b == "tooling"
+			cause = "Tooling"
+		elseif b == "vacc"
+			cause = "Filling vacc"
+		end
+	elseif a == "Finish & RP"
+		cause = "No Parts"
+	elseif a == "Cell Runout"
+		cause = "Runout"
+	elseif a == "Filament"
+		if b in ["SECTION", "Section", "Secton"]
+			cause = "Section"
+		else
+			cause = "Filament"
+		end
+	elseif a == "Fill"
+		if b in ["Silicone Change","Silicone change"]
+			cause = "Silicone Change"
+		end
+	elseif a == "Hare Press"
+		cause = "Press"
+	elseif a == "Inertia"
+		cause = "Inertia"
+	elseif a == "Leak & Volume"
+		cause = a
+	elseif a == "Line Fill"
+		cause = a
+	elseif a in ["Load bearing", "Load Bearing"]
+		cause = "Tooling"
+	elseif a in ["Man", "manning", "manpower"]
+		if b == "Silicone change"
+			cause = b
+		else
+			cause = "Operator shortage"
+		end
+	elseif a == "meeting"
+		cause = "Planned"
+	elseif a in ["P Stamp", "P-Stamp"]
+		cause = "Tooling"
+	elseif a == "Pack"
+		cause = "Packing"
+	elseif a in ["PPM", "ppms", "PPM's"]
+		cause = "PPM"
+	elseif a in ["printer", "Printer"]
+		cause = "Barcode printer"
+	elseif a == "Rework Loop"
+		if b == "Run Out"
+			cause = "Run Out"
+		else
+			cause = "Reworks"
+		end
+	elseif a == "Robot 1"
+		cause = "Robot 1"
+	elseif a == "Robot 2"
+		cause = "Robot 2"
+	elseif a == "Roller Burnish"
+		cause = a
+	elseif a == "Sectioning"
+		if b == "set up"
+			cause = "Changeover"
+		else
+			cause = "Section"
+		end
+	elseif a == "Silicon Change"
+		cause = "Silicone Change"
+	elseif a == "Stop Section"
+		cause = "Section"
+	elseif a == "Supply Parts"
+		if b == "rust"
+			cause = "Rusty Parts"
+		else
+			cause = "No Parts"
+		end
+	elseif a == "Training"
+		cause = "Training"
+	elseif a == "Vision System"
+		cause = a
+	elseif a == "Wash"
+		if b == "tooling"
+			cause = "Tooling"
+		else
+			cause = "Wash"
+		end
+	elseif a == "Weigh 1"
+		if b != "tooling"
+			cause = "Weigh 1"
+		end
+	elseif a == "Weigh 2"
+		cause = "Weigh 2"
+	elseif a == "Weld"
+		if b in ["Beam Alignment", "Beam Align"]
+			cause = "Beam Alignment"
+		elseif b in ["Bias fault", "Bias monitoring fault"]
+			cause = "Bias Fault"
+		elseif b == "Filament"
+			cause = "Filament"
+		elseif b in ["section", "Section", "SECTION", "Secton"]
+			cause = "Section"
+		end
+	elseif a == ""
+		if b == "Barcodes"
+			cause = "Barcode printer"
+		elseif b == "manning"
+			cause = "Operator Shortage"
+		else
+			cause = b
+		end
+	elseif b == "Process"
+		cause = a
+	elseif b == ""
+		cause = a
+	end
+	cause == "" ? "$a - $b": cause
+end
+
+function paint_causes(a, b)
+	if a == ""
+		if b == ""
+			return ""
+		end
+		return b
+	else
+		if b == ""
+			return a
+		end
+		return "$a - $b"
+	end
+end
+
 function write_sheets(io, dfn, line)
 	rows = dfn()
 	cells = DB_Cols[line]["IncidentNo"]
+	if line == "EB"
+		println(io, "IncidentNo\tDate\tLeader\tShift\tLine\tProduct\tStd_Rate_PPH\tAvail_Hours\tProduct_Max\tProduct_Actual\tProduct_Variance\tTime_Variance\tEfficiency\tItem\tProcess\tProblem\tLoss_Mins\tEffect\tOEE_Element\tAction\tFix_Or_Repair\tWeld_section_due\tCause")
+	else
+		println(io, "IncidentNo\tDate\tLeader\tShift\tProduct\tStd_Rate_PPH\tAvail_Hours\tProduct_Max\tProduct_Actual\tProduct_Variance\tTime_Variance\tEfficiency\tLine\tItem\tProcess\tProblem\tQuality_Defect_Type\tQuality_Lost_Parts\tLoss_Mins\tEffect\tOEE_Element\tAction\tFix_Or_Repair\tCause")
+	end
 	for row in 1:size(rows,1)
 		print(io, rows[row, 1])
 		print(io, "\t", Dates.format(DateTime(Dates.UTM(rows[row,2])), "yyyy-mm-dd"))
 		foreach(c->print(io, "\t", rows[row,c]), 3:cells)
-		println(io)
+		if line == "EB"
+			println(io, "\t", eb_causes(rows[row,15], rows[row,16]))
+		else
+			println(io, "\t", paint_causes(rows[row,15], rows[row,16]))
+		end
 	end
 end
 
