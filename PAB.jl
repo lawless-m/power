@@ -339,6 +339,8 @@ end
 function MTBF(line, st, se)
     faults = PABDB.idfaults(line)
 
+    println(faults)
+
     availtime = Dict{Int, Vector{Int}}()
     downtime = Dict{Int, Vector{Tuple{DateTime, DateTime, Int, Int}}}()
     for k in keys(faults)
@@ -346,9 +348,7 @@ function MTBF(line, st, se)
     end
     lstart = 0
 
-    #slots = PABDB.all_slots(line, st, se) #  line, startT, endT, stopmins, loss, fault_id
-
-    slots =
+    slots = PABDB.all_slots(line, st, se) #  line, startT, endT, stopmins, loss, fault_id
 
     if size(slots, 1) == 0
         return
@@ -371,6 +371,8 @@ function MTBF(line, st, se)
         loss = 0
         le = 0
         for d in downtime[f] # d = (startt, endt, avail, loss)
+
+            println(f, " - ", d)
 
             if d[3] == d[4] # whole of this period was lost
                 ended = min(ended, d[1])
@@ -413,10 +415,10 @@ function MTBF(line, st, se)
     end
 end
 
-# importDailies(DateTime(2019, 4, 1))
-# availabilityColour(DateTime(2019, 4, 1), now())
+#importDailies(DateTime(2019, 5, 20))
+#availabilityColour(DateTime(2019, 5, 20), now())
 println("Availability Events")
-for line in ["Auto1", "Auto2", "EB", "Flexi", "HV", "Paint"]
-    MTBF(line, DateTime(2010,4,1,0,0,0), DateTime(2019, 5, 1, 0,0,0))
+for line in ["Auto2"] # ["Auto1", "Auto2", "EB", "Flexi", "HV", "Paint"]
+    MTBF(line, DateTime(2010,5,20,0,0,0), DateTime(2019, 5, 30, 0,0,0))
     println()
 end
