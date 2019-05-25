@@ -8,7 +8,7 @@ using DBAbstracts
 
 export insertPAB!, faultID, insertAvailLoss!, insertPAB!, idfaults, all_slots
 
-PabDB = SQLite.DB("$dbdir\\PABDB.db")
+PabDB = SQLite.DB(joinpath(dbdir, "PABDB.db"))
 
 inserts = Dict{String, Insert}()
 inserts["PABi"] = Insert("PAB", ["Line", "StartT", "EndT", "Reason", "StopMins", "Part", "Target", "Operator", "Actual", "Comment"])

@@ -47,18 +47,19 @@ function maybe_add_xlfn!(xls, dir, line, fn, since)
 	end 
 end
 
-add_root_xldir!(xls, dir, line, since) = foreach((fn)->maybe_add_xlfn!(xls, "$dir/$line", line, fn, since), readdir("$dir/$line"))
+add_root_xldir!(xls, dir, line, since) = foreach((fn)->maybe_add_xlfn!(xls, joinpath(dir,line), line, fn, since), readdir(joinpath(dir, line)))
 
 function add_xl_month!(xls, dir, line, month)
 	mm = Base.Dates.monthname(month)
 	yy = Base.Dates.value(Base.Dates.Year(month))
-	isdir("$dir/$yy/$mm") && foreach((fn)->maybe_add_xlfn!(xls, "$dir/$yy/$mm", line, fn, month), readdir("$dir/$yy/$mm"))
+	pth = joinpath(dir, yy, mm)
+	isdir(pth) && foreach((fn)->maybe_add_xlfn!(xls, pth, line, fn, month), readdir(pth))
 end
 
 function find_xls!(xls, root, month)
 	for line in lines(root)
 		add_root_xldir!(xls, root, line, month)
-		add_xl_month!(xls, "$root/$line", line, month)
+		add_xl_month!(xls, joinpath(root, line), line, month)
 	end
 end
 
@@ -112,7 +113,7 @@ fill_unsched!(events, xls) = foreach((xl)->add_unscheduled!(events, xl), xls)
 
 function add_unscheduled!(events, xl)
 	println(STDERR, xl.fn)
-	sheet = readxlsheet("$(xl.dir)/$(xl.fn)", "Availability")
+	sheet = readxlsheet(joinpath(xl.dir, xl.fn), "Availability")
 	se_rows, equip = timerows_equipment(sheet)
 	midnight = xl.date
 	for t in se_rows, e in 3:3+length(equip)
