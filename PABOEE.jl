@@ -1,5 +1,7 @@
 module PABOEE
 
+include("dirs.jl")
+
 export Event, unscheduled, downPC, slot_txt
 
 using ExcelReaders
@@ -44,7 +46,7 @@ function maybe_add_xlfn!(xls, dir, line, fn, since)
 		println(STDERR, fn)
 		dte = fn_date(fn)
 		since <= dte <= (since + Base.Dates.Month(1)) && add_xl!(xls, dir, line, fn, dte)
-	end 
+	end
 end
 
 add_root_xldir!(xls, dir, line, since) = foreach((fn)->maybe_add_xlfn!(xls, joinpath(dir,line), line, fn, since), readdir(joinpath(dir, line)))
@@ -93,7 +95,7 @@ function timerows_equipment(xl)
 	equip = Vector{String}()
 	endr = totalrow(xl)
 	equipr = 1 + endr - findfirst(isnotnumeric, reverse(xl[1:endr, 1]))
-	
+
 	c = 3
 	while typeof(xl[equipr,c]) == String
 		push!(equip, xl[equipr,c])
@@ -152,7 +154,7 @@ function test()
 	dir = "N:/PAB-OEE Data/Auto Line 2 Volvo"
 	day = DateTime(2018, 8, 25)
 	eventsbd = Dict{Date, Vector{Event}}()
-	
+
 	eventsbd = Dict{Date, Vector{Event}}()
 	fill_unsched!(eventsbd, [XL(dir, line, fn, day)])
 end
