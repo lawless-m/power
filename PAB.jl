@@ -272,7 +272,7 @@ struct Wb
     wb
     fmts::Dict
     function Wb()
-        wb = Workbook("Z:\\Maintenance\\Matt-H\\power\\OEE\\Avail.xlsx")
+        wb = Workbook(joinpath(home, "OEE", "Avail.xlsx"))
         fmts = Dict()
         fmts["angle"] = add_format!(wb, Dict("rotation"=>45))
         fmts["day_fmt"] = add_format!(wb, Dict("num_format"=>"dd/mm/yy"))
