@@ -339,7 +339,7 @@ end
 function MTBF(line, st, se)
     faults = PABDB.idfaults(line)
 
-    println(faults)
+    println(faults[35])
 
     availtime = Dict{Int, Vector{Int}}()
     downtime = Dict{Int, Vector{Tuple{DateTime, DateTime, Int, Int}}}()
@@ -354,6 +354,7 @@ function MTBF(line, st, se)
         return
     end
     earliest = int2time(slots[1, :startT])
+    latest = int2time(slots[end, :startT])
     for r in 1:size(slots, 1)
         #println(slots[r, 1:end])
         if typeof(slots[r, :loss]) != Missings.Missing
@@ -369,16 +370,20 @@ function MTBF(line, st, se)
         tbf[f] = Vector{Int}()
 
         loss = 0
-        le = 0
+
         for d in downtime[f] # d = (startt, endt, avail, loss)
 
-            println(f, " - ", d)
+            println("$f - $d - $loss")
 
             if d[3] == d[4] # whole of this period was lost
+                println("$f p1 $loss")
                 ended = min(ended, d[1])
                 if ended == d[1] # this event ended the timer
+                    println("$f p1a $loss")
                     push!(tbf[f], Dates.value(Dates.Minute(ended - started)))
-                # else
+                else
+
+                    println("$f p1b $loss")
                     # this event was over two contiguous periods and already ended
                 end
                 started = d[2]
@@ -388,6 +393,7 @@ function MTBF(line, st, se)
 
             # last event ended when this one started so put it at the start of the period, add this loss on to the end then restart timer
             if d[1] == started
+                println("$f p2 $loss")
                 loss += d[4]
                 push!(contiguous[f], loss)
                 loss = 0
@@ -395,22 +401,45 @@ function MTBF(line, st, se)
                 continue
             end
 
+            if loss > 0 # previous loss was whole period and not contiguous with this one
+                println("$f p3 $loss")
+                started = d[1]
+                ended = d[2]
+                push!(contiguous[f], loss)
+                loss = 0
+                continue
+            end
+
+            println("$f p4 $loss")
             # this is a new event, put it at the end of the period
             ended = d[2] - Dates.Minute(d[4])
-            push!(tbf[f], Dates.value(Dates.Minute(ended - started)))
+            push!(tbf[f], Dates.value(Dates.Minute(latest - started)))
             started = d[2]
             ended = d[2]
             loss = d[4]
 
         end
 
+        push!(tbf[f], Dates.value(Dates.Minute(ended - started)))
+        if loss > 0 # previous event was the last
+            push!(contiguous[f], loss)
+            loss = 0
+            started = earliest
+            ended = earliest
+        end
+
     end
     println(line, "\n From $st to $se")
     for k in keys(downtime)
+        avail = sum(tbf[k]) - sum(contiguous[k])
+        if avail != 0
+            println("avail $avail, tbf ", tbf[k])
+        end
         if length(contiguous[k]) > 0
             println(faults[k][1], " - ", faults[k][2], " ($k) > ", length(contiguous[k]), " Events, MTTR: ", round(mean(contiguous[k]), 1), ", Event Lengths: ", contiguous[k])
+            println("MTBF: ", avail / (sum(contiguous[k])+1))
         else
-            println(faults[k][1], " - ", faults[k][2], " ($k) > 0 Events")
+            #println(faults[k][1], " - ", faults[k][2], " ($k) > 0 Events")
         end
     end
 end
