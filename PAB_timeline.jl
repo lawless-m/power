@@ -173,18 +173,54 @@ function event_list(faultids, slots)
     events
 end
 
+function group_slots(slots)
+    grouped = Dict{DateTime, Tuple{DateTime, Int, Vector{Tuple{Int, Int}}}}()
+    # st=>et, Actual, [(faultID, loss)...]
+
+    st = int2time(slots[1, :startT]) # for Min below
+    et = st
+    actual = 0
+    for r in 1:size(slots, 1)
+        slot_st = int2time(slots[r, :startT])
+        slot_et = int2time(slots[r, :endT])
+        if slot_et < slot_st
+            slot_et += Dates.Day(1)
+        end
+        if typeof(slots[r, :loss]) == Missings.Missing
+            st = min(st, slot_st)
+            et = slot_et
+            actual += slots[r, :actual]
+        else
+            if st != slot_st
+                grouped[st] = (slot_st, actual, [])
+            end
+            endt, actual, events = get(grouped, slot_st, (slot_et, slots[r, :actual], []))
+            push!(events, (slots[r, :fault_id], slots[r, :loss]))
+            grouped[slot_st] = (endt, actual, events)
+            actual = 0
+            st = slot_et
+        end
+    end
+    if actual > 0
+        grouped[st] = (et, actual, [])
+    end
+    grouped
+end
+
 function MTBF(line, st, se)
     slots = PABDB.all_slots(line, st, se) #  line, startT, endT, stopmins, loss, fault_id
     if size(slots, 1) == 0
         return
     end
+    group_slots(slots)
+    exit(0)
 
     faults = PABDB.idfaults(line)
 
     earliest = int2time(slots[1, :startT])
     latest = int2time(slots[end, :startT])
 
-    events= event_list(keys(faults), slots)
+    events = event_list(keys(faults), slots)
     contiguous = Dict{Int, Vector{Int}}()
     tbf = Dict{Int, Vector{Int}}()
     for f in keys(faults)
@@ -199,7 +235,7 @@ end
 #importDailies(DateTime(2019, 5, 20))
 #availabilityColour(DateTime(2019, 5, 20), now())
 println("Availability Events")
-for line in ["Auto2"] # ["Auto1", "Auto2", "EB", "Flexi", "HV", "Paint"]
+for line in ["Auto1", "Auto2", "EB", "Flexi", "HV", "Paint"]
     MTBF(line, DateTime(2010,5,20,0,0,0), DateTime(2019, 5, 30, 0,0,0))
     println()
 end
