@@ -7,9 +7,9 @@ export clear, insertEB, insertPaint, allEB, allPaint, file_recorded, last_inum
 
 include("dirs.jl")
 
-perfDB = SQLite.DB("$dbdir\\Perf.db")
+perfDB = SQLite.DB(joinpath(DBDir, "Perf.db"))
 
-println("$dbdir\\Perf.db")
+joinpath(DBDir, "Perf.db")
 
 clear(line) = truncate!(perfDB, "EB")
 
