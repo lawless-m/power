@@ -66,7 +66,7 @@ end
 sublt(a,b) = sublist[a[1]] < sublist[b[1]]
 
 function lineFlds()
-    [rootdir * "\\" * d for d in filter((d)->isdir(rootdir * "\\" * d), readdir(rootdir))]
+    [joinpath(rootdir, d) for d in filter((d)->isdir(joinpath(rootdir, d)), readdir(rootdir))]
 end
 
 function ltXls(a, b)
@@ -96,7 +96,7 @@ end
 function lineDays(ch, dir::String, line::String; since=Date(1970, 1, 1))
     subs = Vector{Tuple{String, String}}()
     for fn in readdir(dir)
-        path = dir * "\\" * fn
+        path = joinpath(dir, fn)
         if isdir(path)
             fn[1:3] != "CAM" && push!(subs, (fn, path))
         else
@@ -105,13 +105,13 @@ function lineDays(ch, dir::String, line::String; since=Date(1970, 1, 1))
                 dt = txt2date(dbit[1], since)
                 if dt > since
                     if ch isa Channel # ugh sorry
-                        wb = openxl(dir * "\\" * fn)
+                        wb = openxl(joinpath(dir, fn))
                         pabws, qualws = PABsheet(wb), qualitysheet(wb)
                         if pabws == ""
-                            println(STDERR, dir, "\\", fn, " no PAB")
+                            println(STDERR, joinpath(dir, fn), " no PAB")
                         end
                         if qualws == ""
-                            println(STDERR, dir, "\\", fn, " no QUAL")
+                            println(STDERR, joinpath(dir, fn), " no QUAL")
                         end
                         if pabws != "" && qualws != ""
                             put!(ch, PABwb(dir, fn, line, dt, wb, shift(fn), pabws, qualws))
@@ -251,172 +251,16 @@ function PABdata(p::PABwb, io::Union{Void, IOStream}=nothing)
     end
 end
 
-###################
-end
-
-using SQLiteTools
-using XlsxWriter
-
 function importDailies(since::DateTime=Date(2019, 1, 1))
-    io = open("c:\\temp\\dailies.sql", "w+")
+    io = open(joinpath("c:", "temp", "dailies.sql"), "w+")
     for (d,l) in [("Auto Line", "Auto1"), ("Auto Line 2 Volvo", "Auto2"), ("E.B", "EB"), ("Flexi Line", "Flexi"), ("HV", "HV"), ("Paint Line", "Paint")]
 #    for (d,l) in [("Auto Line", "Auto1")]
-        for p in Channel(ch->PAB.lineDays(ch, PAB.rootdir * "\\" * d, l, since=since))
+        for p in Channel(ch->PAB.lineDays(ch, joinpath(PAB.rootdir, d), l, since=since))
             println(p.filename)
             PAB.PABdata(p, io)
         end
     end
 end
 
-struct Wb
-    wb
-    fmts::Dict
-    function Wb()
-        wb = Workbook(joinpath(home, "OEE", "Avail.xlsx"))
-        fmts = Dict()
-        fmts["angle"] = add_format!(wb, Dict("rotation"=>45))
-        fmts["day_fmt"] = add_format!(wb, Dict("num_format"=>"dd/mm/yy"))
-        fmts["time_fmt"] = add_format!(wb, Dict("num_format"=>"hh:mm"))
-        new(wb, fmts)
-    end
-end
-
-function availabilityColour(startt, endt)
-    wb = Wb()
-    for line in ["Auto1", "Auto2", "EB", "Flexi", "HV", "Paint"]
-        availabilityColourLine(wb, line, startt, endt)
-    end
-    close(wb.wb)
-end
-
-
-function availabilityColourLine(wb::Wb, line, startt, endt)
-    ws = add_worksheet!(wb.wb, line)
-    flts = PABDB.faultList()
-    fault_cols = Dict{Int, Int}()
-
-    write!(ws, 1, 0, "Day")
-    set_column!(ws, 1, 0, 10)
-    write!(ws, 1, 1, "Start")
-    set_column!(ws, 1, 1, 5)
-    write!(ws, 1, 2, "End")
-    set_column!(ws, 1, 2, 5)
-
-    stagec = 3
-
-    for s in keys(flts[line])
-        write!(ws, 0, stagec, s, wb.fmts["angle"])
-        for e in keys(flts[line][s])
-            write!(ws, 1, stagec, e, wb.fmts["angle"])
-            set_column!(ws, 1, stagec, 3)
-            fault_cols[flts[line][s][e]] = stagec
-            stagec += 1
-        end
-    end
-
-    pabs = PABDB.pabsBetween(startt, endt)
-    aloss = PABDB.availLossBetween(startt, endt)
-
-    outr = 2
-    for r in 1:size(pabs,1)
-        if pabs[r, :Line] == line
-            write!(ws, outr, 0, int2time(pabs[r, :StartT]), wb.fmts["day_fmt"])
-            write!(ws, outr, 1, int2time(pabs[r, :StartT]), wb.fmts["time_fmt"])
-            write!(ws, outr, 2, int2time(pabs[r, :EndT]), wb.fmts["time_fmt"])
-
-            for a in 1:size(aloss,1)
-                if aloss[a, :PAB_ID] == pabs[r, :id]
-                    write!(ws, outr, fault_cols[aloss[a, :Fault_ID]], aloss[a, :Loss])
-                end
-            end
-
-            write!(ws, outr, stagec, pabs[r, :Comment])
-            outr += 1
-        end
-    end
-end
-
-function MTBF(line, st, se)
-    faults = PABDB.idfaults(line)
-
-    availtime = Dict{Int, Vector{Int}}()
-    downtime = Dict{Int, Vector{Tuple{DateTime, DateTime, Int, Int}}}()
-    for k in keys(faults)
-        downtime[k] = Vector{Int}()
-    end
-    lstart = 0
-
-    #slots = PABDB.all_slots(line, st, se) #  line, startT, endT, stopmins, loss, fault_id
-
-    slots =
-
-    if size(slots, 1) == 0
-        return
-    end
-    earliest = int2time(slots[1, :startT])
-    for r in 1:size(slots, 1)
-        #println(slots[r, 1:end])
-        if typeof(slots[r, :loss]) != Missings.Missing
-            push!(downtime[slots[r,:fault_id]], (int2time(slots[r, :startT]), int2time(slots[r, :endT]), 60 - slots[r, :stopmins], slots[r, :loss]))
-        end
-    end
-    contiguous = Dict{Int, Vector{Int}}()
-    tbf = Dict{Int, Vector{Int}}()
-    started = earliest
-    ended = earliest
-    for f in keys(faults)
-        contiguous[f] = Vector{Int}()
-        tbf[f] = Vector{Int}()
-
-        loss = 0
-        le = 0
-        for d in downtime[f] # d = (startt, endt, avail, loss)
-
-            if d[3] == d[4] # whole of this period was lost
-                ended = min(ended, d[1])
-                if ended == d[1] # this event ended the timer
-                    push!(tbf[f], Dates.value(Dates.Minute(ended - started)))
-                # else
-                    # this event was over two contiguous periods and already ended
-                end
-                started = d[2]
-                loss += d[4]
-                continue
-            end
-
-            # last event ended when this one started so put it at the start of the period, add this loss on to the end then restart timer
-            if d[1] == started
-                loss += d[4]
-                push!(contiguous[f], loss)
-                loss = 0
-                started += Dates.Minute(d[4])
-                continue
-            end
-
-            # this is a new event, put it at the end of the period
-            ended = d[2] - Dates.Minute(d[4])
-            push!(tbf[f], Dates.value(Dates.Minute(ended - started)))
-            started = d[2]
-            ended = d[2]
-            loss = d[4]
-
-        end
-
-    end
-    println(line, "\n From $st to $se")
-    for k in keys(downtime)
-        if length(contiguous[k]) > 0
-            println(faults[k][1], " - ", faults[k][2], " ($k) > ", length(contiguous[k]), " Events, MTTR: ", round(mean(contiguous[k]), 1), ", Event Lengths: ", contiguous[k])
-        else
-            println(faults[k][1], " - ", faults[k][2], " ($k) > 0 Events")
-        end
-    end
-end
-
-# importDailies(DateTime(2019, 4, 1))
-# availabilityColour(DateTime(2019, 4, 1), now())
-println("Availability Events")
-for line in ["Auto1", "Auto2", "EB", "Flexi", "HV", "Paint"]
-    MTBF(line, DateTime(2010,4,1,0,0,0), DateTime(2019, 5, 1, 0,0,0))
-    println()
+###################
 end
