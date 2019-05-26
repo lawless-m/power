@@ -4,16 +4,20 @@ include("dirs.jl")
 
 using SQLite
 using SQLiteTools
-using DBAbstracts
+#using DBAbstracts
 
 export insertPAB!, faultID, insertAvailLoss!, insertPAB!, idfaults, all_slots
 
-PabDB = SQLite.DB(joinpath(dbdir, "PABDB.db"))
+PabDB = SQLite.DB(joinpath(DBDir, "PABDB.db"))
+
+struct Insert
+    sql::String
+end
 
 inserts = Dict{String, Insert}()
-inserts["PABi"] = Insert("PAB", ["Line", "StartT", "EndT", "Reason", "StopMins", "Part", "Target", "Operator", "Actual", "Comment"])
-inserts["Faulti"] = Insert("Faults", ["Line", "Stage", "Fault"])
-inserts["AvailLossi"] = Insert("AvailabilityLoss", ["PAB_ID", "Fault_ID", "Loss"])
+#inserts["PABi"] = Insert("PAB", ["Line", "StartT", "EndT", "Reason", "StopMins", "Part", "Target", "Operator", "Actual", "Comment"])
+#inserts["Faulti"] = Insert("Faults", ["Line", "Stage", "Fault"])
+#inserts["AvailLossi"] = Insert("AvailabilityLoss", ["PAB_ID", "Fault_ID", "Loss"])
 
 for (k,i) in inserts
     st = IOBuffer()
@@ -69,10 +73,13 @@ function idfaults(line)
 end
 
 function pabsBetween(s::DateTime, e::DateTime)
+    println("SELECT * FROM PAB WHERE StartT >=$(Dates.value(s)) AND EndT <=$( Dates.value(e)) order by Line, StartT desc")
     SQLite.query(PabDB, "SELECT * FROM PAB WHERE StartT >=? AND EndT <=? order by Line, StartT desc", values=[Dates.value(s), Dates.value(e)], stricttypes=true)
+
 end
 
 function availLossBetween(s::DateTime, e::DateTime)
+    println("SELECT AvailabilityLoss.* FROM PAB JOIN AvailabilityLoss on PAB.id=AvailabilityLoss.PAB_ID  WHERE StartT >=$(Dates.value(s)) AND EndT <=$(Dates.value(e))")
     SQLite.query(PabDB, "SELECT AvailabilityLoss.* FROM PAB JOIN AvailabilityLoss on PAB.id=AvailabilityLoss.PAB_ID  WHERE StartT >=? AND EndT <=?", values=[Dates.value(s), Dates.value(e)])
 end
 
