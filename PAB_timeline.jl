@@ -90,101 +90,10 @@ struct downtime
     up::DateTime
 end
 
-
-function process_faults(earliest, latest, events)
-
-    contiguous = Vector{Int}()
-    tbf = Vector{Int}()
-
-    loss = 0
-    started = ended = earliest
-
-    for d in events # d = (startt, endt, avail, loss)
-
-        println("$d - $loss")
-
-        if d[3] == d[4] # whole of this period was lost
-            println("p1 $loss")
-            ended = min(ended, d[1])
-            if ended == d[1] # this event ended the timer
-                println("p1a $loss")
-                push!(tbf, Dates.value(Dates.Minute(ended - started)))
-            else
-
-                println("p1b $loss")
-                # this event was over two contiguous periods and already ended
-            end
-            started = d[2]
-            loss += d[4]
-            continue
-        end
-
-        # last event ended when this one started so put it at the start of the period, add this loss on to the end then restart timer
-        if d[1] == started
-            println("p2 $loss")
-            loss += d[4]
-            push!(contiguous, loss)
-            loss = 0
-            started += Dates.Minute(d[4])
-            continue
-        end
-
-        if loss > 0 # previous loss was whole period and not contiguous with this one
-            println("p3 $loss")
-            started = d[1]
-            ended = d[2]
-            push!(contiguous, loss)
-            loss = 0
-            continue
-        end
-
-        println("p4 $loss")
-        # this is a new event, put it at the end of the period
-        ended = d[2] - Dates.Minute(d[4])
-        push!(tbf, Dates.value(Dates.Minute(ended - started)))
-        started = d[2]
-        ended = d[2]
-        loss = d[4]
-
-    end
-
-    if ended > started
-        push!(tbf, Dates.value(Dates.Minute(ended - started)))
-    end
-    push!(tbf, Dates.value(Dates.Minute(latest - started)))
-    if loss > 0 # previous event was the last
-        println("p5 $loss")
-        push!(contiguous, loss)
-    end
-
-    contiguous, tbf
-end
-
-function print_results(faults, contiguous, tbf)
-    for k in keys(faults)
-        avail = sum(tbf[k])
-        if avail != 0
-            println("avail $avail, tbf ", tbf[k])
-        end
-        if length(contiguous[k]) > 0
-            println(faults[k][1], " - ", faults[k][2], " ($k) > ", length(contiguous[k]), " Events, MTTR: ", round(mean(contiguous[k]), 1), ", Event Lengths: ", contiguous[k])
-            println("MTBF: ", avail / (sum(contiguous[k])+1))
-        else
-            #println(faults[k][1], " - ", faults[k][2], " ($k) > 0 Events")
-        end
-    end
-end
-
-function event_list(faultids, slots)
-    events = Dict{Int, Vector{Tuple{DateTime, DateTime, Int, Int}}}()
-    foreach(k->events[k] = Vector{Int}(), faultids)
-    for r in 1:size(slots, 1)
-        if typeof(slots[r, :loss]) != Missings.Missing
-            push!(events[slots[r,:fault_id]], (int2time(slots[r, :startT]), int2time(slots[r, :endT]), 60 - slots[r, :stopmins], slots[r, :loss]))
-        end
-    end
-    events
-end
+isup(x) = typeof(x) == uptime
+isdown(x) = typeof(x) == downtime
+duration(u::uptime) = Dates.Minute(u.down - u.up)
+duration(d::downtime) = Dates.Minute(d.up - d.down)
 
 function group_slots(slots)
     grouped = Dict{DateTime, Tuple{DateTime, Int, Dict{Int, Tuple{Int, Int}}}}()
@@ -229,16 +138,16 @@ function updowns(slots, faults)
     end
     for slot_st in slot_times
         slot_et, actual, events = slots[slot_st]
-        println(slot_st, " - ", slot_et)
+        #println(slot_st, " - ", slot_et)
         for id in faults
             if id in keys(events)
                 if typeof(ud[id][end]) == uptime # went down
-                    println(id, " - went down")
+                    #println(id, " - went down")
                     dt = slot_et - Dates.Minute(events[id][2])
                     ud[id][end] = uptime(ud[id][end].up, dt, ud[id][end].actual + actual)
                     push!(ud[id], downtime(dt, slot_et))
-                else
-                    println(id, " - stayed down") # stayed down
+                else # stayed down
+                    #println(id, " - stayed down")
                     ut = slot_st + Dates.Minute(events[id][1] + events[id][2])
                     ud[id][end] = downtime(ud[id][end].down, ut)
                     if ut < slot_et
@@ -247,10 +156,10 @@ function updowns(slots, faults)
                 end
             else
                 if typeof(ud[id][end]) == uptime # stayed up
-                    println(id, " - stayed up")
+                    #println(id, " - stayed up")
                     ud[id][end] = uptime(ud[id][end].up, slot_et, ud[id][end].actual + actual)
-                else
-                    println(id, " - went up") # went up
+                else # went up
+                    #println(id, " - went up")
                     ud[id][end] = downtime(ud[id][end].down, slot_st)
                     push!(ud[id], uptime(slot_st, slot_et, actual))
                 end
@@ -260,6 +169,9 @@ function updowns(slots, faults)
     ud
 end
 
+function print_grouped(grouped)
+
+end
 
 function MTBF(line, st, se)
     slots = PABDB.all_slots(line, st, se) #  line, startT, endT, stopmins, loss, fault_id
@@ -267,36 +179,33 @@ function MTBF(line, st, se)
         return
     end
     grouped = group_slots(slots)
-    for st in sort(collect(keys(grouped)))
-        println(st, grouped[st])
-    end
+    # foreach(st->println(st, grouped[st]), sort(collect(keys(grouped)))
 
     faults = PABDB.idfaults(line)
     ud = updowns(grouped, keys(faults))
+
+    setrounding(Float64, Base.RoundUp)
     for id in keys(ud)
-        println(ud[id])
+        print(faults[id])
+        #println(ud[id])
+        ut = Dates.value(sum(duration, ud[id][isup.(ud[id])]))
+        print(" Uptime: ", ut, " mins")
+        if length(ud[id]) > 1
+            dt = Dates.value(sum(duration, ud[id][isdown.(ud[id])]))
+            cnt = count(isdown.(ud[id]))
+            print(" Downtime: ", dt, " mins")
+            print(" Events: ", cnt)
+            @printf(" MTBF: %0.1f mins, MTTR: %0.1f mins", round(ut / cnt, 1), round(dt / cnt, 1))
+        end
+        println()
     end
-    exit(0)
-
-    earliest = int2time(slots[1, :startT])
-    latest = int2time(slots[end, :startT])
-
-    events = event_list(keys(faults), slots)
-    contiguous = Dict{Int, Vector{Int}}()
-    tbf = Dict{Int, Vector{Int}}()
-    for f in keys(faults)
-        println("F $f")
-        contiguous[f], tbf[f] = process_faults(earliest, latest, events[f])
-    end
-
-    println(line, "\n From $st to $se")
-    print_results(faults, contiguous, tbf)
 end
 
 #importDailies(DateTime(2019, 5, 20))
 #availabilityColour(DateTime(2019, 5, 20), now())
 println("Availability Events")
-for line in ["Auto2"] # ["Auto1", "Auto2", "EB", "Flexi", "HV", "Paint"]
-    MTBF(line, DateTime(2010,5,18,0,0,0), DateTime(2019, 5, 30, 0,0,0))
+months = Dict()
+for line in ["Auto1", "Auto2", "EB", "Flexi", "HV", "Paint"]
+    MTBF(line, DateTime(2010,1,1,0,0,0), DateTime(2019, 2, 1, 0,0,0))
     println()
 end
