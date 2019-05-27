@@ -78,6 +78,19 @@ function availabilityColourLine(wb::Wb, line, startt, endt)
     end
 end
 
+
+struct uptime
+    up::DateTime
+    down::DateTime
+    actual::Int
+end
+
+struct downtime
+    down::DateTime
+    up::DateTime
+end
+
+
 function process_faults(earliest, latest, events)
 
     contiguous = Vector{Int}()
@@ -174,7 +187,7 @@ function event_list(faultids, slots)
 end
 
 function group_slots(slots)
-    grouped = Dict{DateTime, Tuple{DateTime, Int, Vector{Tuple{Int, Int}}}}()
+    grouped = Dict{DateTime, Tuple{DateTime, Int, Dict{Int, Tuple{Int, Int}}}}()
     # st=>et, Actual, [(faultID, loss)...]
 
     st = int2time(slots[1, :startT]) # for Min below
@@ -192,30 +205,78 @@ function group_slots(slots)
             actual += slots[r, :actual]
         else
             if st != slot_st
-                grouped[st] = (slot_st, actual, [])
+                grouped[st] = (slot_st, actual, Dict{Int, Int}())
             end
-            endt, actual, events = get(grouped, slot_st, (slot_et, slots[r, :actual], []))
-            push!(events, (slots[r, :fault_id], slots[r, :loss]))
+            endt, actual, events = get(grouped, slot_st, (slot_et, slots[r, :actual], Dict{Int, Tuple{Int, Int}}()))
+            events[slots[r, :fault_id]] = (slots[r, :stopmins], slots[r, :loss])
             grouped[slot_st] = (endt, actual, events)
             actual = 0
             st = slot_et
         end
     end
     if actual > 0
-        grouped[st] = (et, actual, [])
+        grouped[st] = (et, actual, Dict{Int, Tuple{Int, Int}}())
     end
     grouped
 end
+
+function updowns(slots, faults)
+    ud = Dict{Int, Vector{Union{uptime, downtime}}}()
+    slot_times = sort(collect(keys(slots)))
+    for id in faults
+        ud[id] = Vector{Union{uptime, downtime}}()
+        push!(ud[id], uptime(slot_times[1], slot_times[1], 0))
+    end
+    for slot_st in slot_times
+        slot_et, actual, events = slots[slot_st]
+        println(slot_st, " - ", slot_et)
+        for id in faults
+            if id in keys(events)
+                if typeof(ud[id][end]) == uptime # went down
+                    println(id, " - went down")
+                    dt = slot_et - Dates.Minute(events[id][2])
+                    ud[id][end] = uptime(ud[id][end].up, dt, ud[id][end].actual + actual)
+                    push!(ud[id], downtime(dt, slot_et))
+                else
+                    println(id, " - stayed down") # stayed down
+                    ut = slot_st + Dates.Minute(events[id][1] + events[id][2])
+                    ud[id][end] = downtime(ud[id][end].down, ut)
+                    if ut < slot_et
+                        push!(ud[id], uptime(ut, slot_et, actual))
+                    end
+                end
+            else
+                if typeof(ud[id][end]) == uptime # stayed up
+                    println(id, " - stayed up")
+                    ud[id][end] = uptime(ud[id][end].up, slot_et, ud[id][end].actual + actual)
+                else
+                    println(id, " - went up") # went up
+                    ud[id][end] = downtime(ud[id][end].down, slot_st)
+                    push!(ud[id], uptime(slot_st, slot_et, actual))
+                end
+            end
+        end
+    end
+    ud
+end
+
 
 function MTBF(line, st, se)
     slots = PABDB.all_slots(line, st, se) #  line, startT, endT, stopmins, loss, fault_id
     if size(slots, 1) == 0
         return
     end
-    group_slots(slots)
-    exit(0)
+    grouped = group_slots(slots)
+    for st in sort(collect(keys(grouped)))
+        println(st, grouped[st])
+    end
 
     faults = PABDB.idfaults(line)
+    ud = updowns(grouped, keys(faults))
+    for id in keys(ud)
+        println(ud[id])
+    end
+    exit(0)
 
     earliest = int2time(slots[1, :startT])
     latest = int2time(slots[end, :startT])
@@ -235,7 +296,7 @@ end
 #importDailies(DateTime(2019, 5, 20))
 #availabilityColour(DateTime(2019, 5, 20), now())
 println("Availability Events")
-for line in ["Auto1", "Auto2", "EB", "Flexi", "HV", "Paint"]
-    MTBF(line, DateTime(2010,5,20,0,0,0), DateTime(2019, 5, 30, 0,0,0))
+for line in ["Auto2"] # ["Auto1", "Auto2", "EB", "Flexi", "HV", "Paint"]
+    MTBF(line, DateTime(2010,5,18,0,0,0), DateTime(2019, 5, 30, 0,0,0))
     println()
 end
