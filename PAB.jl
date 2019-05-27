@@ -251,8 +251,8 @@ function PABdata(p::PABwb, io::Union{Void, IOStream}=nothing)
     end
 end
 
-function importDailies(since::DateTime=Date(2019, 1, 1))
-    io = open(joinpath("c:", "temp", "dailies.sql"), "w+")
+function importDailies(since::DateTime=DateTime(2019, 1, 1))
+    io = open(joinpath("c:\\", "temp", "dailies.sql"), "w+")
     for (d,l) in [("Auto Line", "Auto1"), ("Auto Line 2 Volvo", "Auto2"), ("E.B", "EB"), ("Flexi Line", "Flexi"), ("HV", "HV"), ("Paint Line", "Paint")]
 #    for (d,l) in [("Auto Line", "Auto1")]
         for p in Channel(ch->PAB.lineDays(ch, joinpath(PAB.rootdir, d), l, since=since))
