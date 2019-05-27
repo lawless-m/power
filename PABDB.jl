@@ -4,20 +4,17 @@ include("dirs.jl")
 
 using SQLite
 using SQLiteTools
-#using DBAbstracts
+using DBAbstracts
 
 export insertPAB!, faultID, insertAvailLoss!, insertPAB!, idfaults, all_slots
 
 PabDB = SQLite.DB(joinpath(DBDir, "PABDB.db"))
 
-struct Insert
-    sql::String
-end
 
 inserts = Dict{String, Insert}()
-#inserts["PABi"] = Insert("PAB", ["Line", "StartT", "EndT", "Reason", "StopMins", "Part", "Target", "Operator", "Actual", "Comment"])
-#inserts["Faulti"] = Insert("Faults", ["Line", "Stage", "Fault"])
-#inserts["AvailLossi"] = Insert("AvailabilityLoss", ["PAB_ID", "Fault_ID", "Loss"])
+inserts["PABi"] = Insert("PAB", ["Line", "StartT", "EndT", "Reason", "StopMins", "Part", "Target", "Operator", "Actual", "Comment"])
+inserts["Faulti"] = Insert("Faults", ["Line", "Stage", "Fault"])
+inserts["AvailLossi"] = Insert("AvailabilityLoss", ["PAB_ID", "Fault_ID", "Loss"])
 
 for (k,i) in inserts
     st = IOBuffer()
