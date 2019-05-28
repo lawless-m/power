@@ -8,18 +8,19 @@ using PAB
 struct Wb
     wb
     fmts::Dict
-    function Wb()
-        wb = Workbook(joinpath(Home, "OEE", "Avail.xlsx"))
+    function Wb(fn)
+        wb = Workbook(fn)
         fmts = Dict()
         fmts["angle"] = add_format!(wb, Dict("rotation"=>45))
         fmts["day_fmt"] = add_format!(wb, Dict("num_format"=>"dd/mm/yy"))
         fmts["time_fmt"] = add_format!(wb, Dict("num_format"=>"hh:mm"))
+        fmts["round"] = add_format!(wb, Dict("num_format"=>"0"))
         new(wb, fmts)
     end
 end
 
 function availabilityColour(startt, endt)
-    wb = Wb()
+    wb = Wb(joinpath(Home, "OEE", "Avail.xlsx"))
     for line in ["Auto1", "Auto2", "EB", "Flexi", "HV", "Paint"]
         availabilityColourLine(wb, line, startt, endt)
     end
@@ -180,52 +181,70 @@ end
 
 
 function prinstatlist(faults, stats)
-    setrounding(Float64, Base.RoundUp)
-
-
-    faultname(id) = faults[id][1] == "Equipment" ? faults[id][2] : faults[id][1], " - ", faults[id][2]
 
     fl = true
+    wb = Wb(joinpath(Home, "MTBF.xlsx"))
 
     for line in sort(collect(keys(stats)))
+        faultname(id) = faults[line][id][1] == "Equipment" ? faults[line][id][2] : "$(faults[line][id][1]) - $(faults[line][id][2])"
+        ws = add_worksheet!(wb.wb, line)
+
         function faultsort(a, b)
             if faults[line][a][1] == faults[line][b][1]
                 return faults[line][a][2] < faults[line][b][2]
             end
             faults[line][a][1] < faults[line][b][1]
         end
-
-        
-
-
-        for date in sort(collect(stats[line]))
-            for id in sort(collect(keys(stats[line][date])), lt=faultsort)
-                print(line, " - ", faultname)
+        coff = minimum(faults[line])[1]-2
+        numr = length(collect(keys(stats[line])))
+        r = 2
+        write!(ws, r, 0, "MTBF")
+        write!(ws, r+numr+1, 0, "MPBF")
+        write!(ws, r+2numr+2, 0, "MTTR")
+        fst = true
+        for date in sort(collect(keys(stats[line])))
+            W = "W$(Dates.week(date))"
+            write!(ws, r, 1, W, wb.fmts["day_fmt"])
+            write!(ws, r+numr+1, 1, W, wb.fmts["day_fmt"])
+            write!(ws, r+2numr+2, 1, W, wb.fmts["day_fmt"])
+            for id in keys(stats[line][date])
+                stat = stats[line][date][id]
+                if fst
+                    write!(ws, 0, id-coff, faults[line][id][1])
+                    write!(ws, 1, id-coff, faults[line][id][2])
+                    #write!(ws, numr + 3, id-coff, faultname(id))
+                end
+                if stat.downtime > 0
+                    write!(ws, r, id-coff, stat.uptime / stat.events, wb.fmts["round"])
+                    write!(ws, r+numr+1, id-coff, stat.parts / stat.events, wb.fmts["round"])
+                    write!(ws, r+2numr+2, id-coff, stat.downtime / stat.events, wb.fmts["round"])
+                end
             end
+            fst = false
+            r += 1
         end
     end
-
-
+    close(wb.wb)
 end
 
-function statlist(faults, line, st, se)
+function statdict(faults, line, st, se)
     stats = Dict{Int, Stat}()
     slots = PABDB.all_slots(line, st, se) #  line, startT, endT, stopmins, loss, fault_id
     if size(slots, 1) == 0
-        return
+        return stats
     end
     grouped = group_slots(slots)
     # foreach(st->println(st, grouped[st]), sort(collect(keys(grouped)))
 
     ud = updowns(grouped, keys(faults))
 
-    for id in keys(ud)
+    for id in keys(faults)
         ut = Dates.value(sum(duration, ud[id][isup.(ud[id])]))
         parts = sum(e->e.actual, ud[id][isup.(ud[id])])
         if length(ud[id]) > 1
             dt = Dates.value(sum(duration, ud[id][isdown.(ud[id])]))
             cnt = count(isdown.(ud[id]))
-            stats[id] = Stat(st, se, parts, ut, dt, cnt)
+            stats[id] = Stat(st, se, parts, cnt, ut, dt)
         else
             stats[id] = Stat(st, se, parts, 0,0,0)
         end
@@ -235,18 +254,16 @@ end
 
 #importDailies(DateTime(2019, 5, 20))
 #availabilityColour(DateTime(2019, 5, 20), now())
-println("Availability Events")
-println("MTBF - Mean time between failures, MTTR - Mean Time To Recover, MPBF - Mean Parts Between Failures")
 periods = Dict()
 ttxt(t) = "$(Dates.day(t)) " * Dates.monthname(t)
 wkst = DateTime(2018,12,31,0,0,0)
-wkend = DateTime(2019,5,19) - Dates.Day(28)
-stats = Dict{String, Dict{Datetime, Dict{Int, Stat}}}()
+wkend = DateTime(2019,5,19) - Dates.Day(7)
+stats = Dict{String, Dict{DateTime, Dict{Int, Stat}}}()
 faults = PABDB.idfaults()
 for line in ["Auto1", "Auto2", "EB", "Flexi", "Paint"] # "HV",
-    stats[line] = Dict{Datetime, Dict{Int, Stat}}()
+    stats[line] = Dict{DateTime, Dict{Int, Stat}}()
     for st in wkst:Dates.Day(7):wkend
-        stats[line][st] = statlist(faults[line], line, st, st + Dates.Day(28))
+        stats[line][st] = statdict(faults[line], line, st, st + Dates.Day(7))
     end
 end
-println(stats)
+prinstatlist(faults, stats)
