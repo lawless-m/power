@@ -60,9 +60,19 @@ function faultList()
     faults
 end
 
+function idfaults()
+    idlist = Dict{String, Dict{Int, Tuple{String, String}}}()
+    flts = SQLite.query(PabDB, "SELECT * FROM Faults")
+    for r in 1:size(flts, 1)
+        lind = get!(idlist, flts[r, :Line], Dict{Int, Tuple{String, String}}())
+        lind[flts[r, :Fault_ID]] = (flts[r, :Stage], flts[r, :Fault])
+    end
+    idlist
+end
+
 function idfaults(line)
     idlist = Dict{Int, Tuple{String, String}}()
-    flts = SQLite.query(PabDB, "SELECT * FROM Faults where line=?", values=[line])
+    flts = SQLite.query(PabDB, "SELECT * FROM Faults WHERE line=?", values=[line])
     for r in 1:size(flts, 1)
         idlist[flts[r, :Fault_ID]] = (flts[r, :Stage], flts[r, :Fault])
     end
@@ -70,20 +80,20 @@ function idfaults(line)
 end
 
 function pabsBetween(s::DateTime, e::DateTime)
-    println("SELECT * FROM PAB WHERE StartT >=$(Dates.value(s)) AND EndT <=$( Dates.value(e)) order by Line, StartT desc")
+    #println("SELECT * FROM PAB WHERE StartT >=$(Dates.value(s)) AND EndT <=$( Dates.value(e)) order by Line, StartT desc")
     SQLite.query(PabDB, "SELECT * FROM PAB WHERE StartT >=? AND EndT <=? order by Line, StartT desc", values=[Dates.value(s), Dates.value(e)], stricttypes=true)
 
 end
 
 function availLossBetween(s::DateTime, e::DateTime)
-    println("SELECT AvailabilityLoss.* FROM PAB JOIN AvailabilityLoss on PAB.id=AvailabilityLoss.PAB_ID  WHERE StartT >=$(Dates.value(s)) AND EndT <=$(Dates.value(e))")
+    #println("SELECT AvailabilityLoss.* FROM PAB JOIN AvailabilityLoss on PAB.id=AvailabilityLoss.PAB_ID  WHERE StartT >=$(Dates.value(s)) AND EndT <=$(Dates.value(e))")
     SQLite.query(PabDB, "SELECT AvailabilityLoss.* FROM PAB JOIN AvailabilityLoss on PAB.id=AvailabilityLoss.PAB_ID  WHERE StartT >=? AND EndT <=?", values=[Dates.value(s), Dates.value(e)])
 end
 
 function all_slots(line, s, e)
     st = Dates.value(s)
     et = Dates.value(e)
-    println(STDERR, "SELECT line, startT, endT, actual, stopmins, loss, fault_id FROM PAB p LEFT JOIN AvailabilityLoss a on p.id=a.pab_id WHERE line='$line' and startt>'$st' and endt<'$et' UNION ALL SELECT line, startT, endT, actual, stopmins, loss, fault_id FROM AvailabilityLoss a LEFT JOIN pab p on p.id=a.pab_id WHERE p.id IS NULL and line='$line' and startt>'$st' and endt<'$et' order by StartT")
+    #println(STDERR, "SELECT line, startT, endT, actual, stopmins, loss, fault_id FROM PAB p LEFT JOIN AvailabilityLoss a on p.id=a.pab_id WHERE line='$line' and startt>'$st' and endt<'$et' UNION ALL SELECT line, startT, endT, actual, stopmins, loss, fault_id FROM AvailabilityLoss a LEFT JOIN pab p on p.id=a.pab_id WHERE p.id IS NULL and line='$line' and startt>'$st' and endt<'$et' order by StartT")
     SQLite.query(PabDB, "SELECT line, startT, endT, actual, stopmins, loss, fault_id FROM PAB p LEFT JOIN AvailabilityLoss a on p.id=a.pab_id WHERE line=? and startt>? and endt<? UNION ALL SELECT line, startT, endT, actual, stopmins, loss, fault_id FROM AvailabilityLoss a LEFT JOIN pab p on p.id=a.pab_id WHERE p.id IS NULL and line=? and startt>? and endt<? order by StartT", values=[line, st, et, line,  st, et])
 
 

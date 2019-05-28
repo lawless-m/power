@@ -169,11 +169,47 @@ function updowns(slots, faults)
     ud
 end
 
-function print_grouped(grouped)
+struct Stat
+    start::DateTime
+    finish::DateTime
+    parts::Int
+    events::Int
+    uptime::Int
+    downtime::Int
+end
+
+
+function prinstatlist(faults, stats)
+    setrounding(Float64, Base.RoundUp)
+
+
+    faultname(id) = faults[id][1] == "Equipment" ? faults[id][2] : faults[id][1], " - ", faults[id][2]
+
+    fl = true
+
+    for line in sort(collect(keys(stats)))
+        function faultsort(a, b)
+            if faults[line][a][1] == faults[line][b][1]
+                return faults[line][a][2] < faults[line][b][2]
+            end
+            faults[line][a][1] < faults[line][b][1]
+        end
+
+        
+
+
+        for date in sort(collect(stats[line]))
+            for id in sort(collect(keys(stats[line][date])), lt=faultsort)
+                print(line, " - ", faultname)
+            end
+        end
+    end
+
 
 end
 
-function MTBF(line, st, se)
+function statlist(faults, line, st, se)
+    stats = Dict{Int, Stat}()
     slots = PABDB.all_slots(line, st, se) #  line, startT, endT, stopmins, loss, fault_id
     if size(slots, 1) == 0
         return
@@ -181,31 +217,36 @@ function MTBF(line, st, se)
     grouped = group_slots(slots)
     # foreach(st->println(st, grouped[st]), sort(collect(keys(grouped)))
 
-    faults = PABDB.idfaults(line)
     ud = updowns(grouped, keys(faults))
 
-    setrounding(Float64, Base.RoundUp)
     for id in keys(ud)
-        print(faults[id])
-        #println(ud[id])
         ut = Dates.value(sum(duration, ud[id][isup.(ud[id])]))
-        print(" Uptime: ", ut, " mins")
+        parts = sum(e->e.actual, ud[id][isup.(ud[id])])
         if length(ud[id]) > 1
             dt = Dates.value(sum(duration, ud[id][isdown.(ud[id])]))
             cnt = count(isdown.(ud[id]))
-            print(" Downtime: ", dt, " mins")
-            print(" Events: ", cnt)
-            @printf(" MTBF: %0.1f mins, MTTR: %0.1f mins", round(ut / cnt, 1), round(dt / cnt, 1))
+            stats[id] = Stat(st, se, parts, ut, dt, cnt)
+        else
+            stats[id] = Stat(st, se, parts, 0,0,0)
         end
-        println()
     end
+    stats
 end
 
 #importDailies(DateTime(2019, 5, 20))
 #availabilityColour(DateTime(2019, 5, 20), now())
 println("Availability Events")
-months = Dict()
-for line in ["Auto1", "Auto2", "EB", "Flexi", "HV", "Paint"]
-    MTBF(line, DateTime(2010,1,1,0,0,0), DateTime(2019, 2, 1, 0,0,0))
-    println()
+println("MTBF - Mean time between failures, MTTR - Mean Time To Recover, MPBF - Mean Parts Between Failures")
+periods = Dict()
+ttxt(t) = "$(Dates.day(t)) " * Dates.monthname(t)
+wkst = DateTime(2018,12,31,0,0,0)
+wkend = DateTime(2019,5,19) - Dates.Day(28)
+stats = Dict{String, Dict{Datetime, Dict{Int, Stat}}}()
+faults = PABDB.idfaults()
+for line in ["Auto1", "Auto2", "EB", "Flexi", "Paint"] # "HV",
+    stats[line] = Dict{Datetime, Dict{Int, Stat}}()
+    for st in wkst:Dates.Day(7):wkend
+        stats[line][st] = statlist(faults[line], line, st, st + Dates.Day(28))
+    end
 end
+println(stats)
