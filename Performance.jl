@@ -344,13 +344,130 @@ function paint_causes(a, b)
 		if b == ""
 			return ""
 		end
+		if b == " Paint coverage"
+			return "Paint Coverage"
+		elseif b == "Changeover"
+			return b
+		elseif uppercase(b) == "COMPRESSOR"
+			return "Comrpessor"
+		elseif b == "Gaps on line"
+			return "Gaps on Line"
+		elseif b == "line fill"
+			return "Line Fill"
+		elseif b == "MEETING"
+			return ""
+		elseif b == "process"
+			return ""
+		elseif b == "shortage"
+			return "Operator Shortage"
+		elseif b in ["Waiting for parts", "Wating for parts"]
+			return "No Parts"
+		end
 		return b
-	else
-		if b == ""
+	end
+
+	if a == "Barcode"
+		if b == "process"
 			return a
 		end
-		return "$a - $b"
 	end
+	if a == "Bung removal"
+		if b == "sequence"
+			return a
+		end
+	end
+	if a == "Changeover"
+		if b == "line fill"
+			return "Line Fill"
+		elseif b =="Run Out"
+			return b
+		end
+		return a
+	elseif a == "Clean masks"
+		return "Clean Masks"
+	elseif a == "Clean spindles"
+		return "Clean Spindles"
+	elseif a == "Clean the bay"
+		return "Bay Clean"
+	elseif a == "contractors on line"
+		return ""
+	elseif a == "Fit Paint Mask"
+		return a
+	elseif a == "Label Printer"
+		return a
+	elseif a == "Light Guard"
+		return a
+	elseif uppercase(a) == "LINE FILL"
+		if b == "parts jammed"
+			return "Parts Jammed"
+		end
+		if b == "Waiting for parts"
+			return "No Parts"
+		end
+		return "Line Fill"
+	elseif a == "Load Spindle"
+		return "Line Fill"
+	elseif a == "Missing Spindle"
+		if b == "Run Out"
+			return b
+		end
+		return "Gaps on Line"
+	elseif uppercase(a) == "NO PARTS"
+		if b == "Run Out"
+			return b
+		end
+		return "No Parts"
+	elseif a == "Oven"
+		if b == "parts"
+			return "No Parts"
+		end
+		return "Gaps on Line"
+	elseif a == "Packing"
+		return a
+	elseif a == "Paint Spray"
+		if b == "trials"
+			return ""
+		end
+		return "Quality Paint"
+	elseif a in ["PPM", "PPMS"]
+		return ""
+	elseif a == "Quality Checks"
+		return a
+	elseif a == "Rejects"
+		return a
+	elseif a == "Ribble parts"
+		return ""
+	elseif a == "Robot"
+		return a
+	elseif a == "Run line off"
+		return "Run Out"
+	elseif a == "Running Slow"
+		if b == "Gaps on line"
+			return "Gaps on Line"
+		elseif b == "Run Out"
+			return b
+		elseif b =="Quality Paint"
+			return b
+		elseif b == "hygiene"
+			return "Cleaning"
+		elseif b == "process"
+			return ""
+		end
+	elseif a == "Service on line"
+		return ""
+	elseif a in ["T1 Wash", "T2 Rinse", "T4 Phosphate", "T5 Rinse", "T6 tank drop"]
+		return titlecase(a)
+	elseif uppercase(a) == "TITRATION CHECKS"
+		return "Titration Checks"
+	elseif a == "Training"
+		return a
+	elseif a == "Trials"
+		return ""
+	elseif b == ""
+		return a
+	end
+
+	return "$a - $b"
 end
 
 function write_sheets(io, dfn, line)
