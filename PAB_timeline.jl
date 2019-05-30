@@ -201,12 +201,14 @@ function prinstatlist(faults, stats)
         write!(ws, r, 0, "MTBF")
         write!(ws, r+numr+1, 0, "MPBF")
         write!(ws, r+2numr+2, 0, "MTTR")
+        write!(ws, r+3numr+3, 0, "Events")
         fst = true
         for date in sort(collect(keys(stats[line])))
             W = "W$(Dates.week(date))"
             write!(ws, r, 1, W, wb.fmts["day_fmt"])
             write!(ws, r+numr+1, 1, W, wb.fmts["day_fmt"])
             write!(ws, r+2numr+2, 1, W, wb.fmts["day_fmt"])
+            write!(ws, r+3numr+3, 1, W, wb.fmts["day_fmt"])
             for id in keys(stats[line][date])
                 stat = stats[line][date][id]
                 if fst
@@ -218,6 +220,7 @@ function prinstatlist(faults, stats)
                     write!(ws, r, id-coff, stat.uptime / stat.events, wb.fmts["round"])
                     write!(ws, r+numr+1, id-coff, stat.parts / stat.events, wb.fmts["round"])
                     write!(ws, r+2numr+2, id-coff, stat.downtime / stat.events, wb.fmts["round"])
+                    write!(ws, r+3numr+3, id-coff, stat.events, wb.fmts["round"])
                 end
             end
             fst = false
@@ -251,13 +254,12 @@ function statdict(faults, line, st, se)
     end
     stats
 end
-
-#importDailies(DateTime(2019, 5, 20))
+#PAB.importDailies(DateTime(2019, 5, 1))
 #availabilityColour(DateTime(2019, 5, 20), now())
 periods = Dict()
 ttxt(t) = "$(Dates.day(t)) " * Dates.monthname(t)
 wkst = DateTime(2018,12,31,0,0,0)
-wkend = DateTime(2019,5,19) - Dates.Day(7)
+wkend = DateTime(2019,6,2) - Dates.Day(7)
 stats = Dict{String, Dict{DateTime, Dict{Int, Stat}}}()
 faults = PABDB.idfaults()
 for line in ["Auto1", "Auto2", "EB", "Flexi", "Paint"] # "HV",
