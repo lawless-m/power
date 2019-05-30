@@ -10,7 +10,7 @@ export PlexDB, pm_list_by_line, pm_stats_by_date, fill_equipment, lines, insert_
 
 export missInt, int2date, int2time
 
-PlexDB = SQLite.DB("$dbdir\\Plex.db")
+PlexDB = SQLite.DB(joinpath(DBDir, "Plex.db"))
 
 missInt = SQLiteTools.missInt
 int2date = SQLiteTools.int2date
