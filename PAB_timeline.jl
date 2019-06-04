@@ -132,13 +132,14 @@ end
 
 function updowns(slots, faults)
     ud = Dict{Int, Vector{Union{uptime, downtime}}}()
-    slot_times = sort(collect(keys(slots)))
+    gslots = group_slots(slots)
+    slot_times = sort(collect(keys(gslots)))
     for id in faults
         ud[id] = Vector{Union{uptime, downtime}}()
         push!(ud[id], uptime(slot_times[1], slot_times[1], 0))
     end
     for slot_st in slot_times
-        slot_et, actual, events = slots[slot_st]
+        slot_et, actual, events = gslots[slot_st]
         #println(slot_st, " - ", slot_et)
         for id in faults
             if id in keys(events)
@@ -180,10 +181,8 @@ struct Stat
 end
 
 
-function prinstatlist(faults, stats)
-
-    fl = true
-    wb = Wb(joinpath(Home, "MTBF.xlsx"))
+function stats_by_week_workbook(faults, stats, path)
+    wb = Wb(path)
 
     for line in sort(collect(keys(stats)))
         faultname(id) = faults[line][id][1] == "Equipment" ? faults[line][id][2] : "$(faults[line][id][1]) - $(faults[line][id][2])"
@@ -214,7 +213,6 @@ function prinstatlist(faults, stats)
                 if fst
                     write!(ws, 0, id-coff, faults[line][id][1])
                     write!(ws, 1, id-coff, faults[line][id][2])
-                    #write!(ws, numr + 3, id-coff, faultname(id))
                 end
                 if stat.downtime > 0
                     write!(ws, r, id-coff, stat.uptime / stat.events, wb.fmts["round"])
@@ -230,16 +228,8 @@ function prinstatlist(faults, stats)
     close(wb.wb)
 end
 
-function statdict(faults, line, st, se)
+function statsummary(faults, ud, st, se)
     stats = Dict{Int, Stat}()
-    slots = PABDB.all_slots(line, st, se) #  line, startT, endT, stopmins, loss, fault_id
-    if size(slots, 1) == 0
-        return stats
-    end
-    grouped = group_slots(slots)
-    # foreach(st->println(st, grouped[st]), sort(collect(keys(grouped)))
-
-    ud = updowns(grouped, keys(faults))
 
     for id in keys(faults)
         ut = Dates.value(sum(duration, ud[id][isup.(ud[id])]))
@@ -254,18 +244,30 @@ function statdict(faults, line, st, se)
     end
     stats
 end
-#PAB.importDailies(DateTime(2019, 5, 1))
-#availabilityColour(DateTime(2019, 5, 20), now())
-periods = Dict()
-ttxt(t) = "$(Dates.day(t)) " * Dates.monthname(t)
-wkst = DateTime(2018,12,31,0,0,0)
-wkend = DateTime(2019,6,2) - Dates.Day(7)
-stats = Dict{String, Dict{DateTime, Dict{Int, Stat}}}()
-faults = PABDB.idfaults()
-for line in ["Auto1", "Auto2", "EB", "Flexi", "Paint"] # "HV",
-    stats[line] = Dict{DateTime, Dict{Int, Stat}}()
-    for st in wkst:Dates.Day(7):wkend
-        stats[line][st] = statdict(faults[line], line, st, st + Dates.Day(7))
+
+function stats_by_week(faultsbyline, wkst, wkend)
+    stats = Dict{String, Dict{DateTime, Dict{Int, Stat}}}()
+    for line in ["Auto1", "Auto2", "EB", "Flexi", "Paint", "HV"]
+        stats[line] = Dict{DateTime, Dict{Int, Stat}}()
+        for st in wkst:Dates.Day(7):wkend
+            se = st + Dates.Day(7)
+            slots = PABDB.all_slots(line, st, se) #  line, startT, endT, stopmins, loss, fault_id
+            if size(slots, 1) > 0
+                stats[line][st] = statsummary(faultsbyline[line], updowns(slots, keys(faultsbyline[line])), st, se)
+            end
+        end
     end
+    stats
 end
-prinstatlist(faults, stats)
+
+function year_to_date(faultsbyline)
+
+end
+#PAB.importDailies(DateTime(2019, 7, 1))
+#availabilityColour(DateTime(2019, 5, 20), now())
+
+wkst = DateTime(2018,12,31,0,0,0)
+wkend = DateTime(2019,6,9) - Dates.Day(7)
+faultsbyline = PABDB.idfaults()
+stats = stats_by_week(faultsbyline, wkst, wkend)
+stats_by_week_workbook(faultsbyline, stats, joinpath(Home, "MTBF.xlsx"))
