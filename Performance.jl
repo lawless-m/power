@@ -17,7 +17,7 @@ DB_Cols = Dict("EB"=>Dict("Date"=>1, "Leader"=>2, "Shift"=>3, "Line"=>4, "Produc
 
 
 function store_Paint_sheet(inum, xld, xlfn)
-	data = readxlsheet(xld * "\\" * xlfn, "Paint")
+	data = readxlsheet(joinpath(xld, xlfn), "Paint")
 	println(xlfn)
 
 	ws_n = WS_Cols["Paint"]
@@ -90,7 +90,7 @@ end
 
 function store_EB_sheet(inum, xld, xlfn)
 	println(xlfn)
-	data = readxlsheet(xld * "\\" * xlfn, "EB Line")
+	data = readxlsheet(joinpath(xld, xlfn), "EB Line")
 
 	ws_n = WS_Cols["EB"]
 	val_n = DB_Cols["EB"]
@@ -146,9 +146,9 @@ function eb_causes(a, b)
 	if a in ["Bar code", "barcode labeller", "barcode ", "Barcode rejects", "Label Printer", "Label printer"]
 		cause = "Barcode printer"
 	elseif a in ["Briefing", "briefing"]
-		cause = "Planned"
+		return ""
 	elseif a in ["Bay clean", "Bay Clean"]
-		cause = "PPM"
+		return "Housekeeping"
 	elseif a == "Build"
 		if b == "parts"
 			cause = "No Parts"
@@ -172,6 +172,10 @@ function eb_causes(a, b)
 			cause = "Section"
 		else
 			cause = "Changeover"
+		end
+	elseif a == "Cell"
+		if b == "Running Slow"
+			return b
 		end
 	elseif a == "Cell Load"
 		if b == "cold start"
@@ -200,12 +204,12 @@ function eb_causes(a, b)
 			cause = "Changeover"
 		end
 	elseif a == "Checks"
-		cause = "TPM"
+		return ""
 	elseif a == "Daily pms"
 		if b == "cold start"
 			cause = "Cold Start"
 		else
-			cause = "TPMs"
+			return ""
 		end
 	elseif a in ["Cold start", "Cold Start"]
 		cause = "Cold Start"
@@ -214,9 +218,9 @@ function eb_causes(a, b)
 	elseif a == "Dot Matrix"
 		cause = "Dot Matrix"
 	elseif a == "Elbow"
-		cause = "Planned"
+		return ""
 	elseif a == "Engineer on line"
-		cause = "Planned"
+		return ""
 	elseif a == "Filament"
 		if b in ["SECTION", "Secton", "Section"]
 			cause = "Section"
@@ -228,11 +232,31 @@ function eb_causes(a, b)
 			cause = "Tooling"
 		elseif b == "vacc"
 			cause = "Filling vacc"
+		elseif b == "Dump Valve"
+			return b
+		elseif b == "PED on line"
+			return ""
+		elseif b == "process"
+			return a
+		elseif b == "Pump 1"
+			return b
+		elseif b == "Silicone change"
+			return b
+		elseif b == "Pump Oil"
+			return "Fill Pump Oil"
+		elseif b == "Scale"
+			return "Fill Scales"
+		elseif b == "Vac time"
+			return "Fill Vac Time"
 		end
 	elseif a == "Finish & RP"
 		cause = "No Parts"
 	elseif a == "Cell Runout"
 		cause = "Runout"
+	elseif a == "Crane"
+		if b == "process"
+			return a
+		end
 	elseif a == "Filament"
 		if b in ["SECTION", "Section", "Secton"]
 			cause = "Section"
@@ -242,6 +266,28 @@ function eb_causes(a, b)
 	elseif a == "Fill"
 		if b in ["Silicone Change","Silicone change"]
 			cause = "Silicone Change"
+		elseif b == "Hose Fault"
+			return "Fill Hose"
+		elseif b == "pump 2 disabled"
+			return "Fill Pump 2"
+		elseif b == "line fill"
+			return "Line Fill"
+		elseif b == "Process"
+			return "Fill"
+		elseif b == "Pump disabled"
+			return "Fill"
+		elseif b == "overfill"
+			return "Overfilling"
+		elseif b == "Scales"
+			return "Fill Scales"
+		elseif b == "Vac times"
+			return "Fill Vacc Times"
+		end
+	elseif a == "Filling vacc"
+		return "Fill Vacc Times"
+	elseif a == "Finish & RP"
+		if b == "Accident"
+			return "H&S - Accident"
 		end
 	elseif a == "Hare Press"
 		cause = "Press"
@@ -249,6 +295,8 @@ function eb_causes(a, b)
 		cause = "Inertia"
 	elseif a == "Leak & Volume"
 		cause = a
+	elseif a == "Line clean"
+		return "Housekeeping"
 	elseif a == "Line Fill"
 		cause = a
 	elseif a in ["Load bearing", "Load Bearing"]
@@ -259,22 +307,28 @@ function eb_causes(a, b)
 		else
 			cause = "Operator shortage"
 		end
-	elseif a == "meeting"
-		cause = "Planned"
+	elseif uppercase(a) == "MEETING"
+		return ""
 	elseif a in ["P Stamp", "P-Stamp"]
 		cause = "Tooling"
 	elseif a == "Pack"
 		cause = "Packing"
 	elseif a in ["PPM", "ppms", "PPM's"]
-		cause = "PPM"
+		return ""
 	elseif a in ["printer", "Printer"]
 		cause = "Barcode printer"
+	elseif a == "Rejects"
+		return "Rejects"
 	elseif a == "Rework Loop"
 		if b == "Run Out"
 			cause = "Run Out"
 		else
 			cause = "Reworks"
 		end
+	elseif a == "Rivet"
+		return "Rivetter"
+	elseif a == "roots pump"
+		return "Roots Pump"
 	elseif a == "Robot 1"
 		cause = "Robot 1"
 	elseif a == "Robot 2"
@@ -297,6 +351,8 @@ function eb_causes(a, b)
 		else
 			cause = "No Parts"
 		end
+	elseif a == "TPM's"
+		return ""
 	elseif a == "Training"
 		cause = "Training"
 	elseif a == "Vision System"
@@ -315,19 +371,63 @@ function eb_causes(a, b)
 		cause = "Weigh 2"
 	elseif a == "Weld"
 		if b in ["Beam Alignment", "Beam Align"]
-			cause = "Beam Alignment"
-		elseif b in ["Bias fault", "Bias monitoring fault"]
-			cause = "Bias Fault"
+			return "Beam Alignment"
+		elseif b in ["Bias fault", "Bias monitoring fault", "Bias Monitioring Fault"]
+			return  "Bias Fault"
+		elseif b == "diaphram overload"
+			return "Diaphram Overload"
 		elseif b == "Filament"
-			cause = "Filament"
+			return  "Filament"
 		elseif b in ["section", "Section", "SECTION", "Secton"]
-			cause = "Section"
+			return  "Section"
+		elseif b == "High Voltage"
+			return b
+		elseif b == "line fill"
+			return "Line Fill"
+		elseif b in ["Load bearings", "Load bearing"]
+			return "Load Bearings"
+		elseif b in ["Pressure rise", "Pressure rise "]
+			return "Vacuum"
+		elseif b == "process"
+			return "Weld"
+		elseif b == "Process chamber"
+			return "Weld"
+		elseif b == "vacc"
+			return "Vacuum"
+		elseif b == "Vac issues"
+			return "Vacuum"
+		elseif b == "Vac times"
+			return "Vacuum"
+		elseif uppercase(b) == "TOOLING"
+			return "Tooling"
+		elseif b == "Safety test"
+			return "Safety Test"
+		elseif b in ["Quality", "Weld quality"]
+			return "Weld Quality"
+		elseif b == " "
+			return a
 		end
 	elseif a == ""
 		if b == "Barcodes"
-			cause = "Barcode printer"
+			return  "Barcode printer"
+		elseif b == "Beam Align"
+			return  "Beam Alignment"
+		elseif uppercase(b) == "BRIEFING"
+			return ""
+		elseif b == "Cell Runout"
+			return "Run out"
+		elseif b == "Fire Alarm"
+			return ""
 		elseif b == "manning"
-			cause = "Operator Shortage"
+			return  "Operator Shortage"
+		elseif b == "Making Packaging"
+			return  "Packaging"
+		elseif b == "Part spill"
+			return b
+		elseif b == "PED on line"
+			return ""
+		elseif b == "planned down"
+			return ""
 		else
 			cause = b
 		end
@@ -336,7 +436,7 @@ function eb_causes(a, b)
 	elseif b == ""
 		cause = a
 	end
-	cause == "" ? "$a - $b": cause
+	cause == "" ? "$a - $b" : cause
 end
 
 function paint_causes(a, b)
@@ -504,17 +604,17 @@ function store_sheets(line, xlfun, storefn)
 end
 
 function procEB()
-	dir = "N:\\EB Performance Sheets"
 	#clear("EB")
+	dir = joinpath("N:\\", "EB Performance Sheets")
 	store_sheets("EB", (c)->perfXls(c, "EB", dir), store_EB_sheet)
-	open((io)->write_sheets(io, allEB, "EB"), "$dir\\EB consolidated.txt", "w+")
+	open((io)->write_sheets(io, allEB, "EB"), joinpath(dir, "EB consolidated.txt"), "w+")
 end
 
 function procPnt()
-	dir = "N:\\Paint Performance Sheets"
 	#clear("Paint")
+	dir = joinpath("N:\\", "Paint Performance Sheets")
 	store_sheets("Paint", (c)->perfXls(c, "Paint", dir), store_Paint_sheet)
-	open((io)->write_sheets(io, allPaint, "Paint"), "$dir\\Paint consolidated.txt", "w+")
+	open((io)->write_sheets(io, allPaint, "Paint"), joinpath(dir, "Paint consolidated.txt"), "w+")
 end
 
 procPnt()
