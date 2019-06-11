@@ -203,7 +203,7 @@ function stats_by_week_workbook(faults, stats, path)
         write!(ws, r+3numr+3, 0, "Events")
         fst = true
         for date in sort(collect(keys(stats[line])))
-            W = "W$(Dates.week(date))"
+            W = "W$(Dates.week(date)-1)"
             write!(ws, r, 1, W, wb.fmts["day_fmt"])
             write!(ws, r+numr+1, 1, W, wb.fmts["day_fmt"])
             write!(ws, r+2numr+2, 1, W, wb.fmts["day_fmt"])
@@ -245,13 +245,29 @@ function statsummary(faults, ud, st, se)
     stats
 end
 
-function stats_by_week(faultsbyline, wkst, wkend)
+function stats_by_days(faultsbyline, wkst, wkend, days=7)
+    stats = Dict{String, Dict{DateTime, Dict{Int, Stat}}}()
+    for line in ["Auto1", "Auto2", "EB", "Flexi", "Paint", "HV"]
+        stats[line] = Dict{DateTime, Dict{Int, Stat}}()
+        for se in wkst+Dates.Day(days):Dates.Day(7):wkend
+            st = se - Dates.Day(days)
+            slots = PABDB.all_slots(line, st, se) #  line, startT, endT, stopmins, loss, fault_id
+            if size(slots, 1) > 0
+                stats[line][se] = statsummary(faultsbyline[line], updowns(slots, keys(faultsbyline[line])), st, se)
+            end
+        end
+    end
+    stats
+end
+
+
+function stats_to_week(faultsbyline, wkst, wkend)
     stats = Dict{String, Dict{DateTime, Dict{Int, Stat}}}()
     for line in ["Auto1", "Auto2", "EB", "Flexi", "Paint", "HV"]
         stats[line] = Dict{DateTime, Dict{Int, Stat}}()
         for st in wkst:Dates.Day(7):wkend
             se = st + Dates.Day(7)
-            slots = PABDB.all_slots(line, st, se) #  line, startT, endT, stopmins, loss, fault_id
+            slots = PABDB.all_slots(line, wkst, se) #  line, startT, endT, stopmins, loss, fault_id
             if size(slots, 1) > 0
                 stats[line][st] = statsummary(faultsbyline[line], updowns(slots, keys(faultsbyline[line])), st, se)
             end
@@ -267,7 +283,10 @@ end
 #availabilityColour(DateTime(2019, 5, 20), now())
 
 wkst = DateTime(2018,12,31,0,0,0)
-wkend = DateTime(2019,6,9) - Dates.Day(7)
+wkend = now()
 faultsbyline = PABDB.idfaults()
-stats = stats_by_week(faultsbyline, wkst, wkend)
-stats_by_week_workbook(faultsbyline, stats, joinpath(Home, "MTBF.xlsx"))
+stats = stats_by_days(faultsbyline, wkst, wkend, 28)
+stats_by_week_workbook(faultsbyline, stats, joinpath(Home, "MTBF_28day.xlsx"))
+
+#stats = stats_to_week(faultsbyline, wkst, wkend)
+#stats_by_week_workbook(faultsbyline, stats, joinpath(Home, "MTBF_cumulative.xlsx"))
