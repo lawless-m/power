@@ -18,7 +18,7 @@ DB_Cols = Dict("EB"=>Dict("Date"=>1, "Leader"=>2, "Shift"=>3, "Line"=>4, "Produc
 
 function store_Paint_sheet(inum, xld, xlfn)
 	data = readxlsheet(joinpath(xld, xlfn), "Paint")
-	println(xlfn)
+	println("Paint ", xlfn)
 
 	ws_n = WS_Cols["Paint"]
 	val_n = DB_Cols["Paint"]
@@ -48,7 +48,11 @@ function store_Paint_sheet(inum, xld, xlfn)
 	vals[2] = data[1,19]
 
 	for r in 3:50
-		if (!Data(r, ws_n["Item"])) && (!Data(r, ws_n["Quality_Defect_Type"]))
+		allblank = true
+		for k in keys(WS_Cols["Paint"])
+			allblank = allblank && !Data(r, ws_n[k])
+		end
+		if allblank
 			return inum
 		end
 
@@ -89,7 +93,7 @@ function store_Paint_sheet(inum, xld, xlfn)
 end
 
 function store_EB_sheet(inum, xld, xlfn)
-	println(xlfn)
+	println("EB ", xlfn)
 	data = readxlsheet(joinpath(xld, xlfn), "EB Line")
 
 	ws_n = WS_Cols["EB"]
