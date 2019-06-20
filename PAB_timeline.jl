@@ -283,7 +283,7 @@ function survivors()
 
 end
 
-PAB.importDailies(DateTime(2019, 6, 1)) # since
+PAB.importDailies(DateTime(2019, 6, 19)) # since
 #availabilityColour(DateTime(2019, 5, 20), now())
 
 
