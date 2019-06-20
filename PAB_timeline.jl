@@ -203,7 +203,8 @@ function stats_by_week_workbook(faults, stats, path)
         write!(ws, r+3numr+3, 0, "Events")
         fst = true
         for date in sort(collect(keys(stats[line])))
-            W = "W$(Dates.week(date)-1)"
+
+            W = "W$(Dates.week(date))"
             write!(ws, r, 1, W, wb.fmts["day_fmt"])
             write!(ws, r+numr+1, 1, W, wb.fmts["day_fmt"])
             write!(ws, r+2numr+2, 1, W, wb.fmts["day_fmt"])
@@ -253,7 +254,7 @@ function stats_by_days(faultsbyline, wkst, wkend, days=7)
             st = se - Dates.Day(days)
             slots = PABDB.all_slots(line, st, se) #  line, startT, endT, stopmins, loss, fault_id
             if size(slots, 1) > 0
-                stats[line][se] = statsummary(faultsbyline[line], updowns(slots, keys(faultsbyline[line])), st, se)
+                stats[line][se - Dates.Day(1)] = statsummary(faultsbyline[line], updowns(slots, keys(faultsbyline[line])), st, se)
             end
         end
     end
@@ -276,11 +277,20 @@ function stats_to_week(faultsbyline, wkst, wkend)
     stats
 end
 
-function year_to_date(faultsbyline)
+
+function survivors()
+
 
 end
-#PAB.importDailies(DateTime(2019, 7, 1))
+
+PAB.importDailies(DateTime(2019, 6, 1)) # since
 #availabilityColour(DateTime(2019, 5, 20), now())
+
+
+lts = PAB.PABDB.latest_PABs()
+for r in 1:size(lts, 1)
+    println(lts[r, 1], ": ", Date(int2time(lts[r,2])))
+end
 
 wkst = DateTime(2018,12,31,0,0,0)
 wkend = now()
@@ -288,5 +298,8 @@ faultsbyline = PABDB.idfaults()
 stats = stats_by_days(faultsbyline, wkst, wkend, 28)
 stats_by_week_workbook(faultsbyline, stats, joinpath(Home, "MTBF_28day.xlsx"))
 
-#stats = stats_to_week(faultsbyline, wkst, wkend)
-#stats_by_week_workbook(faultsbyline, stats, joinpath(Home, "MTBF_cumulative.xlsx"))
+stats = stats_by_days(faultsbyline, wkst, wkend, 7)
+stats_by_week_workbook(faultsbyline, stats, joinpath(Home, "MTBF_7day.xlsx"))
+
+stats = stats_to_week(faultsbyline, wkst, wkend)
+stats_by_week_workbook(faultsbyline, stats, joinpath(Home, "MTBF_cumulative.xlsx"))
