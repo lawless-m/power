@@ -95,8 +95,10 @@ function all_slots(line, s, e)
     et = Dates.value(e)
     #println(STDERR, "SELECT line, startT, endT, actual, stopmins, loss, fault_id FROM PAB p LEFT JOIN AvailabilityLoss a on p.id=a.pab_id WHERE line='$line' and startt>'$st' and endt<'$et' UNION ALL SELECT line, startT, endT, actual, stopmins, loss, fault_id FROM AvailabilityLoss a LEFT JOIN pab p on p.id=a.pab_id WHERE p.id IS NULL and line='$line' and startt>'$st' and endt<'$et' order by StartT")
     SQLite.query(PabDB, "SELECT line, startT, endT, actual, stopmins, loss, fault_id FROM PAB p LEFT JOIN AvailabilityLoss a on p.id=a.pab_id WHERE line=? and startt>? and endt<? UNION ALL SELECT line, startT, endT, actual, stopmins, loss, fault_id FROM AvailabilityLoss a LEFT JOIN pab p on p.id=a.pab_id WHERE p.id IS NULL and line=? and startt>? and endt<? order by StartT", values=[line, st, et, line,  st, et])
+end
 
-
+function latest_PABs()
+    SQLite.query(PabDB, "select line, max(startT) as latest from PAB group by line;")
 end
 
 ###############
