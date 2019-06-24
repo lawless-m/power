@@ -4,6 +4,7 @@ include("dirs.jl")
 using SQLiteTools
 using XlsxWriter
 using PAB
+using Weibull
 
 struct Wb
     wb
@@ -20,6 +21,7 @@ struct Wb
 end
 
 function availabilityColour(startt, endt)
+    println("Writing to ", joinpath(Home, "OEE", "Avail.xlsx"))
     wb = Wb(joinpath(Home, "OEE", "Avail.xlsx"))
     for line in ["Auto1", "Auto2", "EB", "Flexi", "HV", "Paint"]
         availabilityColourLine(wb, line, startt, endt)
@@ -278,13 +280,43 @@ function stats_to_week(faultsbyline, wkst, wkend)
 end
 
 
-function survivors()
-
-
+function survivors(faultsbyline, wkst, wkend)
+    weibulls = Dict{String, Dict{Int, Tuple{Float64, Float64}}}()
+    for line in ["Auto1", "EB", "Flexi", "Paint", "HV"] #"Auto2"
+        faultids = keys(faultsbyline[line])
+        weibulls[line] = Dict{Int, Tuple{Float64, Float64}}()
+        slots = PABDB.all_slots(line, wkst, wkend) #  line, startT, endT, stopmins, loss, fault_id
+        if size(slots, 1) > 0
+            ud = updowns(slots, faultids)
+            for id in faultids
+                uptimes = Vector{Float64}()
+                for u in ud[id][isup.(ud[id])]
+                    t = Dates.value(Dates.Minute(u.down-u.up))
+                    if t > 0
+                        push!(uptimes, t)
+                    end
+                end
+                if length(uptimes) > 1
+                    try
+                        weibulls[line][id] = Weibull.fit(uptimes)
+                        println(line, "\t", id, "\t", faultsbyline[line][id][1], "\t", faultsbyline[line][id][2], "\t", weibulls[line][id][1], "\t", weibulls[line][id][2])
+                    catch
+                        #println("ERROR ", uptimes)
+                        weibulls[line][id] = (0,0)
+                        println(line, "\t", id, "\t", faultsbyline[line][id][1], "\t", faultsbyline[line][id][2], "\t0\t0")
+                    end
+                else
+                    weibulls[line][id] = (0,0)
+                    println(line, "\t", id, "\t", faultsbyline[line][id][1], "\t", faultsbyline[line][id][2], "\t0\t0")
+                end
+            end
+        end
+    end
+    exit()
 end
 
-PAB.importDailies(DateTime(2019, 6, 19)) # since
-#availabilityColour(DateTime(2019, 5, 20), now())
+#PAB.importDailies(DateTime(2019, 6, 19)) # since
+#availabilityColour(DateTime(2019, 6, 1), now())
 
 
 lts = PAB.PABDB.latest_PABs()
@@ -292,9 +324,15 @@ for r in 1:size(lts, 1)
     println(lts[r, 1], ": ", Date(int2time(lts[r,2])))
 end
 
-wkst = DateTime(2018,12,31,0,0,0)
+#wkst = DateTime(2018,12,31,0,0,0)
+
+wkst = DateTime(2019,1,1,0,0,0)
 wkend = now()
 faultsbyline = PABDB.idfaults()
+
+survivors(faultsbyline, wkst, wkend)
+
+
 stats = stats_by_days(faultsbyline, wkst, wkend, 28)
 stats_by_week_workbook(faultsbyline, stats, joinpath(Home, "MTBF_28day.xlsx"))
 
